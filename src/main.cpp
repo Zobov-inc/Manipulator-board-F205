@@ -1,116 +1,161 @@
-//
-// This file is part of the GNU ARM Eclipse distribution.
-// Copyright (c) 2014 Liviu Ionescu.
-//
-
-// ----------------------------------------------------------------------------
-
 #include <stdio.h>
 #include <stdlib.h>
+
 #include "diag/Trace.h"
 
-#include "Timer.h"
-#include "BlinkLed.h"
+#include "main.h"
+#include "stm32f2xx.h"
+#include "misc.h"
+#include "system_stm32f2xx.h"
 
-// ----------------------------------------------------------------------------
-//
-// STM32F2 led blink sample (trace via DEBUG).
-//
-// In debug configurations, demonstrate how to print a greeting message
-// on the trace device. In release configurations the message is
-// simply discarded.
-//
-// To demonstrate POSIX retargetting, reroute the STDOUT and STDERR to the
-// trace device and display messages on both of them.
-//
-// Then demonstrates how to blink a led with 1 Hz, using a
-// continuous loop and SysTick delays.
-//
-// On DEBUG, the uptime in seconds is also displayed on the trace device.
-//
-// Trace support is enabled by adding the TRACE macro definition.
-// By default the trace messages are forwarded to the DEBUG output,
-// but can be rerouted to any device or completely suppressed, by
-// changing the definitions required in system/src/diag/trace_impl.c
-// (currently OS_USE_TRACE_ITM, OS_USE_TRACE_SEMIHOSTING_DEBUG/_STDOUT).
-//
-// The external clock frequency is specified as a preprocessor definition
-// passed to the compiler via a command line option (see the 'C/C++ General' ->
-// 'Paths and Symbols' -> the 'Symbols' tab, if you want to change it).
-// The value selected during project creation was HSE_VALUE=8000000.
-//
-// Note: The default clock settings take the user defined HSE_VALUE and try
-// to reach the maximum possible system clock. For the default 8 MHz input
-// the result is guaranteed, but for other values it might not be possible,
-// so please adjust the PLL settings in system/src/cmsis/system_stm32f2xx.c
-//
+#include "StdStruct.h"
+#include "ZobovManipulator.h"
+#include "ZobovManipulatorJointStepperMotorInc.h"
 
-// Definitions visible only within this translation unit.
-namespace
+uint32_t    period;
+uint16_t	pulse;
+
+int blink_flag = 0;
+
+
+extern "C" void TIM1_IRQHandler()
 {
-  // ----- Timing definitions -------------------------------------------------
-
-  // Keep the LED on for 2/3 of a second.
-  constexpr Timer::ticks_t BLINK_ON_TICKS = Timer::FREQUENCY_HZ * 3 / 4;
-  constexpr Timer::ticks_t BLINK_OFF_TICKS = Timer::FREQUENCY_HZ
-      - BLINK_ON_TICKS;
+    if (TIM_GetITStatus(TIM1, TIM_IT_Update) != RESET)
+    {
+    	TIM_ClearITPendingBit(TIM1, TIM_IT_Update);
+    	ZobovJointTIM::IRQFuncArray[1]->IRQ();
+    	//GPIO_SetBits(GPIOC, GPIO_Pin_13);
+    	//ZobovManipulator::tm2->IRQ();
+    }
 }
 
-// ----- main() ---------------------------------------------------------------
-
-// Sample pragmas to cope with warnings. Please note the related line at
-// the end of this function, used to pop the compiler diagnostics status.
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-#pragma GCC diagnostic ignored "-Wmissing-declarations"
-#pragma GCC diagnostic ignored "-Wreturn-type"
-
-int
-main(int argc, char* argv[])
+extern "C" void TIM2_IRQHandler()
 {
-  // By customising __initialize_args() it is possible to pass arguments,
-  // for example when running tests with semihosting you can pass various
-  // options to the test.
-  // trace_dump_args(argc, argv);
-
-  // Send a greeting to the trace device (skipped on Release).
-  trace_puts("Hello ARM World!");
-
-  // The standard output and the standard error should be forwarded to
-  // the trace device. For this to work, a redirection in _write.c is
-  // required.
-  puts("Standard output message.");
-  fprintf(stderr, "Standard error message.\n");
-
-  // At this stage the system clock should have already been configured
-  // at high speed.
-  trace_printf("System clock: %u Hz\n", SystemCoreClock);
-
-  Timer timer;
-  timer.start();
-
-  BlinkLed blinkLed;
-
-  // Perform all necessary initialisations for the LED.
-  blinkLed.powerUp();
-
-  uint32_t seconds = 0;
-
-  // Infinite loop
-  while (1)
+    if (TIM_GetITStatus(TIM2, TIM_IT_Update) != RESET)
     {
-      blinkLed.turnOn();
-      timer.sleep(seconds == 0 ? Timer::FREQUENCY_HZ : BLINK_ON_TICKS);
-
-      blinkLed.turnOff();
-      timer.sleep(BLINK_OFF_TICKS);
-
-      ++seconds;
-
-      // Count seconds on the trace device.
-      trace_printf("Second %u\n", seconds);
+    	TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
+    	ZobovJointTIM::IRQFuncArray[2]->IRQ();
+    	//ZobovManipulator::tm2->IRQ();
     }
-  // Infinite loop, never return.
+}
+
+extern "C" void TIM3_IRQHandler(void)
+{
+    if (TIM_GetITStatus(TIM3, TIM_IT_Update) != RESET)
+    {
+    	TIM_ClearITPendingBit(TIM3, TIM_IT_Update);
+    	ZobovJointTIM::IRQFuncArray[3]->IRQ();
+    	//ZobovManipulator::tm3->IRQ();
+    	//ZobovJointTIM::IRQArray[3]->IRQ();
+    }
+}
+
+extern "C" void TIM4_IRQHandler()
+{
+    if (TIM_GetITStatus(TIM4, TIM_IT_Update) != RESET)
+    {
+    	TIM_ClearITPendingBit(TIM4, TIM_IT_Update);
+    	ZobovJointTIM::IRQFuncArray[4]->IRQ();
+    	//ZobovManipulator::tm4->IRQ();
+    }
+}
+
+extern "C" void TIM5_IRQHandler()
+{
+    if (TIM_GetITStatus(TIM5, TIM_IT_Update) != RESET)
+    {
+    	TIM_ClearITPendingBit(TIM5, TIM_IT_Update);
+    	ZobovJointTIM::IRQFuncArray[5]->IRQ();
+    	//ZobovManipulator::tm5->IRQ();
+    }
+}
+
+extern "C" void TIM6_IRQHandler()
+{
+    if (TIM_GetITStatus(TIM6, TIM_IT_Update) != RESET)
+    {
+    	TIM_ClearITPendingBit(TIM6, TIM_IT_Update);
+    	ZobovJointTIM::IRQFuncArray[6]->IRQ();
+    	//ZobovManipulator::tm6->IRQ();
+    }
+}
+
+
+extern "C" void TIM7_IRQHandler()
+{
+    if (TIM_GetITStatus(TIM7, TIM_IT_Update) != RESET)
+    {
+    	TIM_ClearITPendingBit(TIM7, TIM_IT_Update);
+    	ZobovJointTIM::IRQFuncArray[7]->IRQ();
+    	//GPIO_SetBits(GPIOC, GPIO_Pin_13);
+    	//ZobovManipulator::tm2->IRQ();
+    }
+}
+
+
+extern "C" void TIM8_UP_TIM13_IRQHandler()
+{
+    if (TIM_GetITStatus(TIM8, TIM_IT_Update) != RESET)
+    {
+    	TIM_ClearITPendingBit(TIM8, TIM_IT_Update);
+    	ZobovJointTIM::IRQFuncArray[8]->IRQ();
+    	//GPIO_SetBits(GPIOC, GPIO_Pin_13);
+    	//ZobovManipulator::tm2->IRQ();
+    }
+}
+
+
+extern "C" void TIM1_BRK_TIM9_IRQHandler()
+{
+    if (TIM_GetITStatus(TIM9, TIM_IT_Update) != RESET)
+    {
+    	TIM_ClearITPendingBit(TIM9, TIM_IT_Update);
+    	ZobovJointTIM::IRQFuncArray[9]->IRQ();
+    	//GPIO_SetBits(GPIOC, GPIO_Pin_13);
+    	//ZobovManipulator::tm2->IRQ();
+    }
+}
+
+extern "C" void TIM1_UP_TIM10_IRQHandler()
+{
+    if (TIM_GetITStatus(TIM10, TIM_IT_Update) != RESET)
+    {
+    	TIM_ClearITPendingBit(TIM10, TIM_IT_Update);
+    	//ZobovManipulator::tm6->IRQ();
+    	ZobovJointTIM::IRQFuncArray[10]->IRQ();
+    	GPIO_SetBits(GPIOC, GPIO_Pin_13);
+    }
+}
+
+
+//int argc, char* argv[]
+int main()	{
+	//trace_puts("Hello ARM World!");
+
+	ZobovManipulator::InitPorts();
+	ZobovManipulator::InitTIM();
+	ZobovManipulator::InitNVIC();
+
+	//ZobovJointTIM *tm3 = new ZobovJointTIM(3);
+
+	TIM_ClearITPendingBit(TIM10, TIM_IT_Update);
+
+	//ZobovJointTIM *tm10 = new ZobovJointTIM(10);
+	auto test_joint = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(10), 1, new ZobovGPIOPort{RCC_AHB1Periph_GPIOB, GPIOB, 8}, new ZobovGPIOPort{RCC_AHB1Periph_GPIOA, GPIOA, 11});// ZobovManipulator::tm2);
+
+//	auto new_joint = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(4), 1, new ZobovGPIOPort{RCC_AHB1Periph_GPIOB, GPIOB, 8}, new ZobovGPIOPort{RCC_AHB1Periph_GPIOA, GPIOA, 11});// ZobovManipulator::tm2);
+
+	test_joint->setDirection(CLOCK);
+	test_joint->rotate(90);
+
+	//volatile unsigned int i = 0;
+  // Infinite loop
+	while (1) {
+		//++i;
+    }
+
+	delete test_joint;
+	//delete tm10;
 }
 
 #pragma GCC diagnostic pop
