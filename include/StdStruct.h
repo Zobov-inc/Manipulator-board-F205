@@ -27,8 +27,8 @@ private:
 	TIM_TimeBaseInitTypeDef TIM_TimeBaseStructure;
 
 	bool _lock = 0;
-	uint16_t count = 0;
-	uint16_t limit;
+	uint32_t count = 0;
+	uint32_t limit;
 
 public:
 	static ZobovJointTIM *IRQFuncArray[];
@@ -54,7 +54,7 @@ public:
 		TIM_ITConfig(TIMArray[num], TIM_IT_Update, DISABLE);
 	};
 	void IRQ();
-	void setLimit(uint16_t l) {
+	void setLimit(uint32_t l) {
 		limit = l;
 	}
 };

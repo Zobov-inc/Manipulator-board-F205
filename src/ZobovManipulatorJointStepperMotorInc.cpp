@@ -17,7 +17,7 @@ error_joint ZobovManipulatorJointStepperMotorInc::rotate(degree theta) {
 	TIM->lock();
 
 	//limit = ceil(theta/step*microstep);
-	uint16_t limit = (uint16_t)ceil(theta/360*200*32*2);
+	uint32_t limit = (uint32_t)ceil(theta/360*200*32*2);
 
 	//set EncoderTIM
 	if (encTIM) encTIM->setLimit(limit);
