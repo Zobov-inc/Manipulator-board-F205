@@ -26,6 +26,7 @@ void ZobovManipulator::InitTIM() {
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM5, ENABLE);
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM6, ENABLE);
 
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM12 , ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM10 , ENABLE);
 
 
@@ -39,13 +40,13 @@ void ZobovManipulator::InitTIM() {
 }
 
 void ZobovManipulator::InitPorts() {
-
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOB, ENABLE);
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOC, ENABLE);
 
 	GPIO_InitTypeDef GPIO_InitStructure;
 
+	//lamp
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_25MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_13;
@@ -53,21 +54,42 @@ void ZobovManipulator::InitPorts() {
 	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
 
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_25MHz;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
-	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_1;
-	GPIO_Init(GPIOA, &GPIO_InitStructure);
-	GPIO_PinAFConfig(GPIOA, GPIO_PinSource1, GPIO_AF_TIM2);
+
+
+	//	auto joint_1 = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(5), 1, new ZobovGPIOPort{RCC_AHB1Periph_GPIOA, GPIOA, 0}, new ZobovGPIOPort{RCC_AHB1Periph_GPIOA, GPIOA, 10});
+	//	auto joint_4 = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(10), 1, new ZobovGPIOPort{RCC_AHB1Periph_GPIOB, GPIOB, 8}, new ZobovGPIOPort{RCC_AHB1Periph_GPIOA, GPIOA, 11});
 
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_25MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
 	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
 	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0;
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
-	GPIO_PinAFConfig(GPIOA, GPIO_PinSource5, GPIO_AF_TIM2);
+	GPIO_PinAFConfig(GPIOA, GPIO_PinSource0, GPIO_AF_TIM5);
+
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_25MHz;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
+	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_10;
+	GPIO_Init(GPIOA, &GPIO_InitStructure);
+	GPIO_PinAFConfig(GPIOA, GPIO_PinSource10, GPIO_AF_TIM5);
+
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_25MHz;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
+	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8;
+	GPIO_Init(GPIOB, &GPIO_InitStructure);
+	GPIO_PinAFConfig(GPIOB, GPIO_PinSource8, GPIO_AF_TIM10);
+
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_25MHz;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
+	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_11;
+	GPIO_Init(GPIOA, &GPIO_InitStructure);
+	GPIO_PinAFConfig(GPIOA, GPIO_PinSource11, GPIO_AF_TIM10);
 }
 
 void ZobovManipulator::InitNVIC() {

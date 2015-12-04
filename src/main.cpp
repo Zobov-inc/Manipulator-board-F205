@@ -127,6 +127,28 @@ extern "C" void TIM1_UP_TIM10_IRQHandler()
     }
 }
 
+extern "C" void TIM1_TRG_COM_TIM11_IRQHandler()
+{
+    if (TIM_GetITStatus(TIM11, TIM_IT_Update) != RESET)
+    {
+    	TIM_ClearITPendingBit(TIM11, TIM_IT_Update);
+    	//ZobovManipulator::tm6->IRQ();
+    	ZobovJointTIM::IRQFuncArray[11]->IRQ();
+    	GPIO_SetBits(GPIOC, GPIO_Pin_13);
+    }
+}
+
+extern "C" void TIM8_BRK_TIM12_IRQHandler()
+{
+    if (TIM_GetITStatus(TIM12, TIM_IT_Update) != RESET)
+    {
+    	TIM_ClearITPendingBit(TIM12, TIM_IT_Update);
+    	//ZobovManipulator::tm6->IRQ();
+    	ZobovJointTIM::IRQFuncArray[12]->IRQ();
+    	GPIO_SetBits(GPIOC, GPIO_Pin_13);
+    }
+}
+
 
 //int argc, char* argv[]
 int main()	{
@@ -134,27 +156,37 @@ int main()	{
 
 	ZobovManipulator::InitPorts();
 	ZobovManipulator::InitTIM();
-	ZobovManipulator::InitNVIC();
+	//ZobovManipulator::InitNVIC();
 
 	//ZobovJointTIM *tm3 = new ZobovJointTIM(3);
 
+	TIM_ClearITPendingBit(TIM5, TIM_IT_Update);
 	TIM_ClearITPendingBit(TIM10, TIM_IT_Update);
+	//TIM_ClearITPendingBit(TIM12, TIM_IT_Update);
 
 	//ZobovJointTIM *tm10 = new ZobovJointTIM(10);
-	auto test_joint = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(10), 1, new ZobovGPIOPort{RCC_AHB1Periph_GPIOB, GPIOB, 8}, new ZobovGPIOPort{RCC_AHB1Periph_GPIOA, GPIOA, 11});// ZobovManipulator::tm2);
 
-//	auto new_joint = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(4), 1, new ZobovGPIOPort{RCC_AHB1Periph_GPIOB, GPIOB, 8}, new ZobovGPIOPort{RCC_AHB1Periph_GPIOA, GPIOA, 11});// ZobovManipulator::tm2);
+	//auto joint_3 = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(4), 1, new ZobovGPIOPort{RCC_AHB1Periph_GPIOB, GPIOB, 8}, new ZobovGPIOPort{RCC_AHB1Periph_GPIOA, GPIOA, 11});// ZobovManipulator::tm2);
 
-	test_joint->setDirection(CLOCK);
-	test_joint->rotate(90);
+	auto joint_1 = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(5), 1, new ZobovGPIOPort{RCC_AHB1Periph_GPIOA, GPIOA, 0}, new ZobovGPIOPort{RCC_AHB1Periph_GPIOA, GPIOA, 10});
+	auto joint_4 = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(10), 1, new ZobovGPIOPort{RCC_AHB1Periph_GPIOB, GPIOB, 8}, new ZobovGPIOPort{RCC_AHB1Periph_GPIOA, GPIOA, 11});
 
-	//volatile unsigned int i = 0;
-  // Infinite loop
-	while (1) {
-		//++i;
-    }
+	//auto new_joint = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(4), 1, new ZobovGPIOPort{RCC_AHB1Periph_GPIOB, GPIOB, 8}, new ZobovGPIOPort{RCC_AHB1Periph_GPIOA, GPIOA, 11});// ZobovManipulator::tm2);
 
-	delete test_joint;
+	joint_1->setDirection(CLOCK);
+	joint_1->rotate(3600);
+
+	joint_4->setDirection(CLOCK);
+	joint_4->rotate(3600);
+	volatile unsigned int i = 0;
+
+    //Infinite loop
+	while (1)
+		++i;
+
+	delete joint_1;
+	delete joint_4;
+	++i;
 	//delete tm10;
 }
 
