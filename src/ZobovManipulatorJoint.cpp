@@ -17,7 +17,7 @@ OCnFunc* ZobovManipulatorJoint::OCnFunction[] = {TIM_OC1Init, TIM_OC2Init, TIM_O
 IRQn ZobovManipulatorJoint::TIMIRQn[] = {TIM2_IRQn, TIM2_IRQn, TIM3_IRQn, TIM4_IRQn, TIM2_IRQn, TIM2_IRQn, TIM2_IRQn, TIM2_IRQn, TIM2_IRQn, TIM1_UP_TIM10_IRQn, TIM1_TRG_COM_TIM11_IRQn, TIM8_BRK_TIM12_IRQn, TIM2_IRQn};
 uint8_t ZobovManipulatorJoint::GPIO_AF[] = {GPIO_AF_TIM1, GPIO_AF_TIM2, GPIO_AF_TIM3, GPIO_AF_TIM4, GPIO_AF_TIM5, 0, 0, GPIO_AF_TIM8, GPIO_AF_TIM9, GPIO_AF_TIM10, GPIO_AF_TIM11};
 
-ZobovManipulatorJoint::ZobovManipulatorJoint(ZobovJointTIM *t, char o, ZobovGPIOPort *s, ZobovGPIOPort *d, ZobovEncoderTIM* e = NULL) : TIM(t), OCn(o-1), st(s), dir(d), encTIM(e) {
+ZobovManipulatorJoint::ZobovManipulatorJoint(ZobovJointTIM *t, char o, ZobovManipulatorStepGPIOPort *s, ZobovManipulatorDirGPIOPort *d, ZobovEncoderTIM* e = NULL) : TIM(t), OCn(o-1), st(s), dir(d), encTIM(e) {
 	assert(OCn >= 0);
 	assert(OCn <= 3);
 
@@ -34,8 +34,8 @@ ZobovManipulatorJoint::ZobovManipulatorJoint(ZobovJointTIM *t, char o, ZobovGPIO
 	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
 	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
 	GPIO_InitStructure.GPIO_Pin = st->getPin();
-	GPIO_Init(st->GPIO, &GPIO_InitStructure);
-	GPIO_PinAFConfig(st->GPIO, st->getPinSource(), GPIO_AF[TIM->num]);
+	GPIO_Init(st->getGPIO(), &GPIO_InitStructure);
+	GPIO_PinAFConfig(st->getGPIO(), st->getPinSource(), GPIO_AF[TIM->num]);
 
 	//direction pin config
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_25MHz;
@@ -43,7 +43,7 @@ ZobovManipulatorJoint::ZobovManipulatorJoint(ZobovJointTIM *t, char o, ZobovGPIO
 	GPIO_InitStructure.GPIO_Pin = dir->getPin();
 	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
 	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-	GPIO_Init(dir->GPIO, &GPIO_InitStructure);
+	GPIO_Init(dir->getGPIO(), &GPIO_InitStructure);
 
 	setDirection(COUNTERCLOCK);
 
@@ -59,10 +59,10 @@ ZobovManipulatorJoint::ZobovManipulatorJoint(ZobovJointTIM *t, char o, ZobovGPIO
 
 void ZobovManipulatorJoint::setDirection(direction d) {
 	if (d == COUNTERCLOCK) {
-		GPIO_ResetBits(dir->GPIO, dir->getPin());
+		GPIO_ResetBits(dir->getGPIO(), dir->getPin());
 	}
 	else {
-		GPIO_SetBits(dir->GPIO, dir->getPin());
+		GPIO_SetBits(dir->getGPIO(), dir->getPin());
 	}
 
 }

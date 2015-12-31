@@ -23,8 +23,10 @@ public:
 	*/
 
 	static void InitTIM();
+	static void InitEXTI();
 	static void InitPorts();
 	static void InitNVIC();
+	//static void InitADC();
 
 private:
 	ZobovManipulator() { }

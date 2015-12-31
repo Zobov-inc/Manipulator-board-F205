@@ -20,7 +20,7 @@ private:
 
 public:
 	//t - tim for irq; o - ccmr; p - period
-	ZobovManipulatorJointStepperMotorInc(ZobovJointTIM *t, char o, ZobovGPIOPort *s, ZobovGPIOPort *d, ZobovEncoderTIM* e = NULL) : ZobovManipulatorJoint(t, o, s, d, e) {};
+	ZobovManipulatorJointStepperMotorInc(ZobovJointTIM *t, char o, ZobovManipulatorStepGPIOPort *s, ZobovManipulatorDirGPIOPort *d, ZobovEncoderTIM* e = NULL) : ZobovManipulatorJoint(t, o, s, d, e) {};
 	virtual error_joint rotate(degree theta);
 	virtual ~ZobovManipulatorJointStepperMotorInc();
 };

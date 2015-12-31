@@ -12,12 +12,27 @@
 #include "ZobovManipulator.h"
 #include "ZobovManipulatorJointStepperMotorInc.h"
 
+
 uint32_t    period;
 uint16_t	pulse;
 
 int blink_flag = 0;
 
 
+
+/*
+extern "C" void ADC_IRQHandler()
+{
+	volatile static int i;
+	i = 0;
+
+	if (ADC_GetFlagStatus (ADC1, ADC_FLAG_STRT)) {
+		ADC_ClearFlag(ADC1, ADC_FLAG_STRT);
+		i = 1;
+	}
+
+}
+*/
 extern "C" void TIM1_IRQHandler()
 {
     if (TIM_GetITStatus(TIM1, TIM_IT_Update) != RESET)
@@ -155,39 +170,42 @@ int main()	{
 	//trace_puts("Hello ARM World!");
 
 	ZobovManipulator::InitPorts();
+	ZobovManipulator::InitEXTI();
 	ZobovManipulator::InitTIM();
-	//ZobovManipulator::InitNVIC();
+	ZobovManipulator::InitNVIC();
 
-	//ZobovJointTIM *tm3 = new ZobovJointTIM(3);
-
-	TIM_ClearITPendingBit(TIM5, TIM_IT_Update);
-	TIM_ClearITPendingBit(TIM10, TIM_IT_Update);
-	//TIM_ClearITPendingBit(TIM12, TIM_IT_Update);
-
-	//ZobovJointTIM *tm10 = new ZobovJointTIM(10);
-
-	//auto joint_3 = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(4), 1, new ZobovGPIOPort{RCC_AHB1Periph_GPIOB, GPIOB, 8}, new ZobovGPIOPort{RCC_AHB1Periph_GPIOA, GPIOA, 11});// ZobovManipulator::tm2);
-
-	auto joint_1 = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(5), 1, new ZobovGPIOPort{RCC_AHB1Periph_GPIOA, GPIOA, 0}, new ZobovGPIOPort{RCC_AHB1Periph_GPIOA, GPIOA, 10});
-	auto joint_4 = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(10), 1, new ZobovGPIOPort{RCC_AHB1Periph_GPIOB, GPIOB, 8}, new ZobovGPIOPort{RCC_AHB1Periph_GPIOA, GPIOA, 11});
-
-	//auto new_joint = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(4), 1, new ZobovGPIOPort{RCC_AHB1Periph_GPIOB, GPIOB, 8}, new ZobovGPIOPort{RCC_AHB1Periph_GPIOA, GPIOA, 11});// ZobovManipulator::tm2);
+	auto joint_1 = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(5), 1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOB, 1, 9, 5), new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOA, 0, 12));
+	auto joint_2 = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(11), 1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOB, 1, 15, 11), new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOC, 2, 8));
+	auto joint_3 = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(10), 1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOB, 1, 8, 10), new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOA, 0, 11));
 
 	joint_1->setDirection(CLOCK);
 	joint_1->rotate(3600);
 
-	joint_4->setDirection(CLOCK);
-	joint_4->rotate(3600);
-	volatile unsigned int i = 0;
+	joint_2->setDirection(CLOCK);
+	joint_2->rotate(3600);
+
+	joint_3->setDirection(CLOCK);
+	joint_3->rotate(3600);
+
+	/*
+	volatile uint32_t	j;
+	extern volatile uint32_t ADCValues; // <- the results are here
+	*/
 
     //Infinite loop
-	while (1)
-		++i;
+	for(;;)
+	{
+		/*
+		j = ADCValues;
+		if (ADCValues > 0){
+			GPIO_SetBits(GPIOC, GPIO_Pin_13);
+		}
+		*/
+	}
 
 	delete joint_1;
-	delete joint_4;
-	++i;
-	//delete tm10;
+	delete joint_2;
+	delete joint_3;
 }
 
 #pragma GCC diagnostic pop
