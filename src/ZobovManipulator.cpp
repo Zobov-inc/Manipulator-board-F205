@@ -8,12 +8,11 @@
 #include <stdio.h>
 
 #include "ZobovManipulator.h"
+#include "ZobovLimitingSwitch.h"
+#include "ZobovManipulatorJointStepperMotorInc.h"
 
 #include "stm32f2xx.h"
-#include "stm32f2xx_adc.h"
 #include "stm32f2xx_rcc.h"
-
-volatile uint32_t      ADCValues;
 
 /*
 ZobovEncoderTIM *ZobovManipulator::tm2 = NULL;
@@ -22,6 +21,18 @@ ZobovEncoderTIM *ZobovManipulator::tm4 = NULL;
 ZobovEncoderTIM *ZobovManipulator::tm5 = NULL;
 ZobovEncoderTIM *ZobovManipulator::tm6 = NULL;
 */
+ZobovManipulatorJoint *ZobovManipulator::joint[JOINT_CT] = {NULL};
+ZobovLimitingSwitch *ZobovManipulator::lim_switch[LIM_SWITCH_CT] = {NULL};
+
+void ZobovManipulator::Init() {
+	InitPorts();
+	InitEXTI();
+	InitTIM();
+	InitNVIC();
+	InitJoint();
+	InitLimSwitch();
+	InitLimits();
+}
 
 void ZobovManipulator::InitTIM() {
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2, ENABLE);
@@ -63,9 +74,47 @@ void ZobovManipulator::InitEXTI() {
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_SYSCFG, ENABLE);
 }
 
+void ZobovManipulator::InitJoint() {
+//	joint[0] = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(5), 1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOB, 1, 9, 5), new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOA, 0, 12));
+//	joint[1] = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(11), 1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOB, 1, 15, 11), new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOC, 2, 8));
+	joint[0] = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(10), 1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOB, 1, 8, 10), new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOA, 0, 11));
+}
+
+void ZobovManipulator::InitLimSwitch() {
+	lim_switch[0] = new ZobovManipulatorJointLimitingSwitch(new ZobovSwitchGPIOPort(RCC_AHB1Periph_GPIOB, 1, 0), joint[0]);
+	lim_switch[1] = new ZobovManipulatorJointLimitingSwitch(new ZobovSwitchGPIOPort(RCC_AHB1Periph_GPIOB, 1, 1), joint[0]);
+}
+
+void ZobovManipulator::InitLimits() {
+/*
+	joint[0]->setDirection(CLOCK);
+	joint[0]->rotate(360);
+	for(int i = 0; i < 1000000; ++i);
+	joint[0]->setDirection(COUNTERCLOCK);
+	joint[0]->rotate(360);
+*/
+	for(uint8_t i = 0; i < JOINT_CT; ++i) {
+		joint[i]->setDirection(CLOCK);
+		joint[i]->rotate(3600);
+	}
+
+	for(uint8_t i = 0; i < JOINT_CT; ++i)
+		while(joint[i]->getStatus() != IDLE);
+
+	for(uint8_t i = 0; i < JOINT_CT; ++i) {
+		joint[i]->setDirection(COUNTERCLOCK);
+		joint[i]->rotate(3600);
+	}
+
+	for(uint8_t i = 0; i < JOINT_CT; ++i)
+		while(joint[i]->getStatus() != IDLE);
+
+}
+
 void ZobovManipulator::InitNVIC() {
+	//NVIC_InitTypeDef nvicStructure;
+
 	/*
-	NVIC_InitTypeDef nvicStructure;
 	nvicStructure.NVIC_IRQChannel = TIM2_IRQn;
 	nvicStructure.NVIC_IRQChannelPreemptionPriority = 0;
 	nvicStructure.NVIC_IRQChannelSubPriority = 0;
@@ -74,7 +123,6 @@ void ZobovManipulator::InitNVIC() {
 	*/
 
 	/*
-	NVIC_InitTypeDef nvicStructure;
 	nvicStructure.NVIC_IRQChannel = TIM3_IRQn;
 	nvicStructure.NVIC_IRQChannelPreemptionPriority = 0;
 	nvicStructure.NVIC_IRQChannelSubPriority = 1;
@@ -83,7 +131,6 @@ void ZobovManipulator::InitNVIC() {
 	TIM_ITConfig(TIM3, TIM_IT_Update, ENABLE);
 	*/
 
-	NVIC_InitTypeDef nvicStructure;
 	/*nvicStructure.NVIC_IRQChannel = ADC_IRQn;
 	nvicStructure.NVIC_IRQChannelPreemptionPriority = 1;
 	nvicStructure.NVIC_IRQChannelSubPriority = 2;
@@ -94,4 +141,11 @@ void ZobovManipulator::InitNVIC() {
 	ADC_ITConfig(ADC1, ADC_IT_OVR, DISABLE);
 	ADC_ITConfig(ADC1, ADC_IT_JEOC, DISABLE);
 	*/
+}
+
+ZobovManipulator::~ZobovManipulator() {
+	for(uint8_t i = 0; i < JOINT_CT; ++i)
+		delete joint[i];
+	for(uint8_t i = 0; i < LIM_SWITCH_CT; ++i)
+		delete lim_switch[i];
 }

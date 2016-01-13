@@ -10,14 +10,15 @@
 
 #include "stm32f2xx_gpio.h"
 
+#include "ZobovGPIOPort.h"
+#include "ZobovTIM.h"
 #include "ZobovManipulatorJoint.h"
-#include "StdStruct.h"
 
 OCnFunc* ZobovManipulatorJoint::OCnFunction[] = {TIM_OC1Init, TIM_OC2Init, TIM_OC3Init, TIM_OC4Init};
 IRQn ZobovManipulatorJoint::TIMIRQn[] = {TIM2_IRQn, TIM2_IRQn, TIM3_IRQn, TIM4_IRQn, TIM2_IRQn, TIM2_IRQn, TIM2_IRQn, TIM2_IRQn, TIM2_IRQn, TIM1_UP_TIM10_IRQn, TIM1_TRG_COM_TIM11_IRQn, TIM8_BRK_TIM12_IRQn, TIM2_IRQn};
 uint8_t ZobovManipulatorJoint::GPIO_AF[] = {GPIO_AF_TIM1, GPIO_AF_TIM2, GPIO_AF_TIM3, GPIO_AF_TIM4, GPIO_AF_TIM5, 0, 0, GPIO_AF_TIM8, GPIO_AF_TIM9, GPIO_AF_TIM10, GPIO_AF_TIM11};
 
-ZobovManipulatorJoint::ZobovManipulatorJoint(ZobovJointTIM *t, char o, ZobovManipulatorStepGPIOPort *s, ZobovManipulatorDirGPIOPort *d, ZobovEncoderTIM* e = NULL) : TIM(t), OCn(o-1), st(s), dir(d), encTIM(e) {
+ZobovManipulatorJoint::ZobovManipulatorJoint(ZobovJointTIM *t, char o, ZobovManipulatorStepGPIOPort *s, ZobovManipulatorDirGPIOPort *d, ZobovEncoderTIM* e = NULL) : TIM(t), OCn(o-1), st(s), dir(d), encTIM(e), _status(IDLE), dir_lock{0,0} {
 	assert(OCn >= 0);
 	assert(OCn <= 3);
 
@@ -67,6 +68,21 @@ void ZobovManipulatorJoint::setDirection(direction d) {
 
 }
 
+direction ZobovManipulatorJoint::getDirection() {
+	return (direction)GPIO_ReadOutputDataBit(dir->getGPIO(), dir->getPin());
+}
+
+void ZobovManipulatorJoint::setDirLock(direction d) {
+	dir_lock[d] = true;
+}
+
+void ZobovManipulatorJoint::unsetDirLock(direction d) {
+	dir_lock[d] = false;
+}
+
+jointStatus ZobovManipulatorJoint::getStatus() {
+	return _status;
+}
 
 error_joint ZobovManipulatorJoint::setSpeed(speed s) {
 	uint32_t pulse;

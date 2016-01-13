@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <ZobovGPIOPort.h>
 
 #include "diag/Trace.h"
 
@@ -8,9 +9,10 @@
 #include "misc.h"
 #include "system_stm32f2xx.h"
 
-#include "StdStruct.h"
+#include "ZobovLimitingSwitch.h"
 #include "ZobovManipulator.h"
 #include "ZobovManipulatorJointStepperMotorInc.h"
+#include "ZobovTIM.h"
 
 
 uint32_t    period;
@@ -164,48 +166,35 @@ extern "C" void TIM8_BRK_TIM12_IRQHandler()
     }
 }
 
+int iq = 0;
+int iw = 0;
+int ie = 0;
 
-//int argc, char* argv[]
+extern "C" void EXTI0_IRQHandler()
+{
+	++iq;
+	GPIO_SetBits(GPIOB, GPIO_Pin_0);
+	EXTIHelper::CallIRQn(0);
+}
+
+extern "C" void EXTI1_IRQHandler()
+{
+	++iw;
+	EXTIHelper::CallIRQn(1);
+}
+
+extern "C" void EXTI4_IRQHandler()
+{
+	++ie;
+	EXTIHelper::CallIRQn(4);
+}
+
+
 int main()	{
-	//trace_puts("Hello ARM World!");
+	ZobovManipulator::Init();
 
-	ZobovManipulator::InitPorts();
-	ZobovManipulator::InitEXTI();
-	ZobovManipulator::InitTIM();
-	ZobovManipulator::InitNVIC();
-
-	auto joint_1 = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(5), 1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOB, 1, 9, 5), new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOA, 0, 12));
-	auto joint_2 = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(11), 1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOB, 1, 15, 11), new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOC, 2, 8));
-	auto joint_3 = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(10), 1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOB, 1, 8, 10), new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOA, 0, 11));
-
-	joint_1->setDirection(CLOCK);
-	joint_1->rotate(3600);
-
-	joint_2->setDirection(CLOCK);
-	joint_2->rotate(3600);
-
-	joint_3->setDirection(CLOCK);
-	joint_3->rotate(3600);
-
-	/*
-	volatile uint32_t	j;
-	extern volatile uint32_t ADCValues; // <- the results are here
-	*/
-
-    //Infinite loop
-	for(;;)
-	{
-		/*
-		j = ADCValues;
-		if (ADCValues > 0){
-			GPIO_SetBits(GPIOC, GPIO_Pin_13);
-		}
-		*/
-	}
-
-	delete joint_1;
-	delete joint_2;
-	delete joint_3;
+	//Infinite loop
+	for(;;);
 }
 
 #pragma GCC diagnostic pop
