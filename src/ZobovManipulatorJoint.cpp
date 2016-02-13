@@ -16,9 +16,9 @@
 
 OCnFunc* ZobovManipulatorJoint::OCnFunction[] = {TIM_OC1Init, TIM_OC2Init, TIM_OC3Init, TIM_OC4Init};
 IRQn ZobovManipulatorJoint::TIMIRQn[] = {TIM2_IRQn, TIM2_IRQn, TIM3_IRQn, TIM4_IRQn, TIM2_IRQn, TIM2_IRQn, TIM2_IRQn, TIM2_IRQn, TIM2_IRQn, TIM1_UP_TIM10_IRQn, TIM1_TRG_COM_TIM11_IRQn, TIM8_BRK_TIM12_IRQn, TIM2_IRQn};
-uint8_t ZobovManipulatorJoint::GPIO_AF[] = {GPIO_AF_TIM1, GPIO_AF_TIM2, GPIO_AF_TIM3, GPIO_AF_TIM4, GPIO_AF_TIM5, 0, 0, GPIO_AF_TIM8, GPIO_AF_TIM9, GPIO_AF_TIM10, GPIO_AF_TIM11};
+uint8_t ZobovManipulatorJoint::GPIO_AF[] = {GPIO_AF_TIM1, GPIO_AF_TIM2, GPIO_AF_TIM3, GPIO_AF_TIM4, GPIO_AF_TIM5, 0, 0, GPIO_AF_TIM8, GPIO_AF_TIM9, GPIO_AF_TIM10, GPIO_AF_TIM11, GPIO_AF_TIM12, GPIO_AF_TIM13, GPIO_AF_TIM14};
 
-ZobovManipulatorJoint::ZobovManipulatorJoint(ZobovJointTIM *t, char o, ZobovManipulatorStepGPIOPort *s, ZobovManipulatorDirGPIOPort *d, ZobovEncoderTIM* e = NULL) : TIM(t), OCn(o-1), st(s), dir(d), encTIM(e), _status(IDLE), dir_lock{0,0} {
+ZobovManipulatorJoint::ZobovManipulatorJoint(ZobovJointTIM *t, uint8_t o, ZobovManipulatorStepGPIOPort *s, ZobovManipulatorDirGPIOPort *d, degree dToZ, ZobovEncoderTIM* e = NULL) : TIM(t), OCn(o-1), st(s), dir(d), encTIM(e), status(IDLE), dir_lock{0,0}, degreeToZero(dToZ) {
 	assert(OCn >= 0);
 	assert(OCn <= 3);
 
@@ -51,7 +51,7 @@ ZobovManipulatorJoint::ZobovManipulatorJoint(ZobovJointTIM *t, char o, ZobovMani
 	setSpeed(0); //TODO set speed
 
 	//assert(encTIM->Joint == NULL);
-	if (encTIM->Joint != NULL)
+	if (encTIM != NULL)
 		encTIM->Joint = this;
 	else {
 		TIM->Joint = this;
@@ -59,7 +59,7 @@ ZobovManipulatorJoint::ZobovManipulatorJoint(ZobovJointTIM *t, char o, ZobovMani
 }
 
 void ZobovManipulatorJoint::setDirection(direction d) {
-	if (d == COUNTERCLOCK) {
+	if ((dr = d) == COUNTERCLOCK) {
 		GPIO_ResetBits(dir->getGPIO(), dir->getPin());
 	}
 	else {
@@ -69,7 +69,8 @@ void ZobovManipulatorJoint::setDirection(direction d) {
 }
 
 direction ZobovManipulatorJoint::getDirection() {
-	return (direction)GPIO_ReadOutputDataBit(dir->getGPIO(), dir->getPin());
+	return dr;
+	//return (direction)GPIO_ReadOutputDataBit(dir->getGPIO(), dir->getPin());
 }
 
 void ZobovManipulatorJoint::setDirLock(direction d) {
@@ -81,7 +82,11 @@ void ZobovManipulatorJoint::unsetDirLock(direction d) {
 }
 
 jointStatus ZobovManipulatorJoint::getStatus() {
-	return _status;
+	return status;
+}
+
+void ZobovManipulatorJoint::setStatus(jointStatus s) {
+	status = s;
 }
 
 error_joint ZobovManipulatorJoint::setSpeed(speed s) {
@@ -103,6 +108,12 @@ error_joint ZobovManipulatorJoint::setSpeed(speed s) {
 	OCnFunction[OCn](TIM->getTIM(), &TIM_OCInitStructure);
 
 	return 0;
+}
+
+void ZobovManipulatorJoint::rotateToZero() {
+	setDirection(dirToZero);
+	//setSpeed();
+	rotate(degreeToZero);
 }
 
 ZobovManipulatorJoint::~ZobovManipulatorJoint() {

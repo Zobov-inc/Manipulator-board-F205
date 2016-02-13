@@ -6,32 +6,34 @@
  */
 
 #include <stdio.h>
+#include <math.h>
 
 #include "ZobovManipulator.h"
 #include "ZobovLimitingSwitch.h"
 #include "ZobovManipulatorJointStepperMotorInc.h"
 
 #include "stm32f2xx.h"
+#include "stm32f2xx_pwr.h"
+#include "stm32f2xx_rtc.h"
 #include "stm32f2xx_rcc.h"
 
-/*
-ZobovEncoderTIM *ZobovManipulator::tm2 = NULL;
-ZobovEncoderTIM *ZobovManipulator::tm3 = NULL;
-ZobovEncoderTIM *ZobovManipulator::tm4 = NULL;
-ZobovEncoderTIM *ZobovManipulator::tm5 = NULL;
-ZobovEncoderTIM *ZobovManipulator::tm6 = NULL;
-*/
-ZobovManipulatorJoint *ZobovManipulator::joint[JOINT_CT] = {NULL};
-ZobovLimitingSwitch *ZobovManipulator::lim_switch[LIM_SWITCH_CT] = {NULL};
+using std::array;
+
+ZobovManipulatorJoint *ZobovManipulator::joint[JOINT_CT] = { NULL };
+ZobovManipulatorJointLimitingSwitch *ZobovManipulator::lim_switch[LIM_SWITCH_CT] = { NULL };
+ZobovGrabber* ZobovManipulator::graber = NULL;
+bool ZobovManipulator::timeLock = false;
 
 void ZobovManipulator::Init() {
 	InitPorts();
 	InitEXTI();
 	InitTIM();
 	InitNVIC();
+	InitRTC();
 	InitJoint();
-	InitLimSwitch();
-	InitLimits();
+	InitGraber();
+	//InitLimSwitch();
+	//RotateToStart();
 }
 
 void ZobovManipulator::InitTIM() {
@@ -40,9 +42,10 @@ void ZobovManipulator::InitTIM() {
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM4, ENABLE);
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM5, ENABLE);
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM6, ENABLE);
-
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM12 , ENABLE);
+
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM10 , ENABLE);
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM11, ENABLE);
 
 
 	/*
@@ -72,43 +75,57 @@ void ZobovManipulator::InitPorts() {
 
 void ZobovManipulator::InitEXTI() {
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_SYSCFG, ENABLE);
+
+	/* EXTI configuration */
+	EXTI_InitTypeDef EXTI_InitStructure;
+	EXTI_ClearITPendingBit(EXTI_Line17);
+	EXTI_InitStructure.EXTI_Line = EXTI_Line17;
+	EXTI_InitStructure.EXTI_Mode = EXTI_Mode_Interrupt;
+	EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Rising;
+	EXTI_InitStructure.EXTI_LineCmd = ENABLE;
+	EXTI_Init(&EXTI_InitStructure);
+
 }
 
 void ZobovManipulator::InitJoint() {
-//	joint[0] = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(5), 1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOB, 1, 9, 5), new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOA, 0, 12));
-//	joint[1] = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(11), 1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOB, 1, 15, 11), new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOC, 2, 8));
-	joint[0] = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(10), 1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOB, 1, 8, 10), new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOA, 0, 11));
+	joint[0] = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(11), 1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOB, 1, 9, 11), new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOA, 0, 12), 30);//switch at CLOCK
+	joint[1] = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(10), 1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOB, 1, 8, 10), new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOA, 0, 11), 30);//switch at CLOCK
+	joint[2] = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(12), 1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOB, 1, 14,12), new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOC, 2, 9),  30);//switch at COUNTERCLOCK
+	joint[3] = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(5),  1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOA, 0, 0, 5),  new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOA, 0, 10), 30);//switch at COUNTERCLOCK
 }
 
 void ZobovManipulator::InitLimSwitch() {
-	lim_switch[0] = new ZobovManipulatorJointLimitingSwitch(new ZobovSwitchGPIOPort(RCC_AHB1Periph_GPIOB, 1, 0), joint[0]);
-	lim_switch[1] = new ZobovManipulatorJointLimitingSwitch(new ZobovSwitchGPIOPort(RCC_AHB1Periph_GPIOB, 1, 1), joint[0]);
+	//lim_switch[0] = new ZobovManipulatorJointLimitingSwitch(new ZobovSwitchGPIOPort(RCC_AHB1Periph_GPIOB, 1, 0), joint[0], CLOCK);
+	//lim_switch[1] = new ZobovManipulatorJointLimitingSwitch(new ZobovSwitchGPIOPort(RCC_AHB1Periph_GPIOB, 1, 1), joint[0], COUNTERCLOCK);
+	lim_switch[0] = new ZobovManipulatorJointLimitingSwitch(new ZobovSwitchGPIOPort(RCC_AHB1Periph_GPIOC, 2, 0), joint[0], CLOCK);
+	lim_switch[1] = new ZobovManipulatorJointLimitingSwitch(new ZobovSwitchGPIOPort(RCC_AHB1Periph_GPIOC, 2, 1), joint[1], CLOCK);
+	lim_switch[2] = new ZobovManipulatorJointLimitingSwitch(new ZobovSwitchGPIOPort(RCC_AHB1Periph_GPIOC, 2, 2), joint[2], COUNTERCLOCK);
+	lim_switch[3] = new ZobovManipulatorJointLimitingSwitch(new ZobovSwitchGPIOPort(RCC_AHB1Periph_GPIOC, 2, 3), joint[3], COUNTERCLOCK);
 }
 
-void ZobovManipulator::InitLimits() {
-/*
-	joint[0]->setDirection(CLOCK);
-	joint[0]->rotate(360);
-	for(int i = 0; i < 1000000; ++i);
-	joint[0]->setDirection(COUNTERCLOCK);
-	joint[0]->rotate(360);
-*/
-	for(uint8_t i = 0; i < JOINT_CT; ++i) {
-		joint[i]->setDirection(CLOCK);
-		joint[i]->rotate(3600);
-	}
+void ZobovManipulator::InitGraber() {
+	graber = new ZobovGrabber(new ZobovGraberGPIOPort(RCC_AHB1Periph_GPIOC, 2, 5));
+}
 
-	for(uint8_t i = 0; i < JOINT_CT; ++i)
-		while(joint[i]->getStatus() != IDLE);
+void ZobovManipulator::RotateToStart() {
+//	for(uint8_t i = 0; i < 2; ++i) {
+//		joint[i]->setDirection(CLOCK);
+//		joint[i]->rotate(3600*2);
+//	}
 
 	for(uint8_t i = 0; i < JOINT_CT; ++i) {
-		joint[i]->setDirection(COUNTERCLOCK);
-		joint[i]->rotate(3600);
+		joint[i]->setDirectionToZero( (lim_switch[i]->getDir() == CLOCK)?COUNTERCLOCK:CLOCK );
+		joint[i]->setDirection( lim_switch[i]->getDir() );
+		joint[i]->rotate(360);
 	}
 
-	for(uint8_t i = 0; i < JOINT_CT; ++i)
-		while(joint[i]->getStatus() != IDLE);
+	WaitAll();
 
+	for(uint8_t i = 0; i < JOINT_CT; ++i) {
+		joint[i]->rotateToZero();
+	}
+
+	WaitAll();
 }
 
 void ZobovManipulator::InitNVIC() {
@@ -141,7 +158,142 @@ void ZobovManipulator::InitNVIC() {
 	ADC_ITConfig(ADC1, ADC_IT_OVR, DISABLE);
 	ADC_ITConfig(ADC1, ADC_IT_JEOC, DISABLE);
 	*/
+
+	NVIC_InitTypeDef NVIC_InitStructure;
+	/* Enable the RTC Alarm Interrupt */
+	NVIC_InitStructure.NVIC_IRQChannel = RTC_Alarm_IRQn;
+	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
+	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
+	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+	NVIC_Init(&NVIC_InitStructure);
 }
+
+
+void ZobovManipulator::InitRTC() {
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR, ENABLE);    /* Enable the PWR clock */
+	PWR_BackupAccessCmd(ENABLE);                          /* Allow access to RTC */
+	RCC_LSICmd(ENABLE);                                   /* Enable the LSI OSC */
+
+	while(RCC_GetFlagStatus(RCC_FLAG_LSIRDY) == RESET);   /* Wait till LSI is ready */
+
+	RCC_RTCCLKConfig(RCC_RTCCLKSource_LSI);               /* Select the RTC Clock Source */
+	RCC_RTCCLKCmd(ENABLE);                                /* Enable the RTC Clock */
+	RTC_WaitForSynchro();                  /* Wait for RTC APB registers synchronisation */
+
+	RTC_InitTypeDef RTC_InitStruct;
+	RTC_StructInit(&RTC_InitStruct);
+	RTC_InitStruct.RTC_AsynchPrediv = 127;
+	RTC_InitStruct.RTC_SynchPrediv = 249;
+	RTC_InitStruct.RTC_HourFormat = RTC_HourFormat_24;
+	RTC_Init(&RTC_InitStruct);
+
+    RTC_AlarmCmd(RTC_Alarm_A, DISABLE);   /* disable before setting or cann't write */
+	RTC_AlarmCmd(RTC_Alarm_B, DISABLE);   /* disable before setting or cann't write */
+//
+//	RTC_AlarmTypeDef RTC_AlarmStructure;
+//
+//	/* set alarm time 8:30:0 everyday */
+//	RTC_AlarmStructure.RTC_AlarmTime.RTC_H12     = RTC_H12_AM;
+//	RTC_AlarmStructure.RTC_AlarmTime.RTC_Hours   = 0x08;
+//	RTC_AlarmStructure.RTC_AlarmTime.RTC_Minutes = 0x30;
+//	RTC_AlarmStructure.RTC_AlarmTime.RTC_Seconds = 0x0;
+//	RTC_AlarmStructure.RTC_AlarmDateWeekDay = 0x31; // Nonspecific
+//	RTC_AlarmStructure.RTC_AlarmDateWeekDaySel = RTC_AlarmDateWeekDaySel_Date;
+//	RTC_AlarmStructure.RTC_AlarmMask = RTC_AlarmMask_DateWeekDay; // Everyday
+//	//RTC_AlarmStructure.RTC_AlarmMask = RTC_AlarmMask_All; // Everysecond
+//	RTC_SetAlarm(RTC_Format_BCD, RTC_Alarm_A, &RTC_AlarmStructure);
+//
+//	/* Enable Alarm */
+//	RTC_ITConfig(RTC_IT_ALRA, ENABLE);
+//	RTC_AlarmCmd(RTC_Alarm_A, ENABLE);
+//	RTC_ClearFlag(RTC_FLAG_ALRAF);
+}
+
+
+void ZobovManipulator::enableRTCAlarm(seconds sec) {
+	/* set time to 8:00:00 */
+	RTC_TimeTypeDef RTC_TimeStruct;
+	RTC_TimeStruct.RTC_Hours = 0x01;
+	RTC_TimeStruct.RTC_Minutes = 0x01;
+	RTC_TimeStruct.RTC_Seconds = 0x01;
+    RTC_SetTime(RTC_Format_BCD, &RTC_TimeStruct);
+
+	RTC_AlarmTypeDef RTC_AlarmStructure;
+	RTC_AlarmCmd(RTC_Alarm_A, DISABLE);   /* disable before setting or cann't write */
+
+	sec += RTC_TimeStruct.RTC_Seconds + RTC_TimeStruct.RTC_Minutes*60 + RTC_TimeStruct.RTC_Hours*3600;
+	uint16_t min = (uint16_t)sec/60;
+	uint8_t hour = (uint8_t)min/60;
+	assert(hour < 12);
+	min -= hour*60;
+	sec = sec%60;
+	assert(RTC_TimeStruct.RTC_Hours + hour < 12);
+	assert(RTC_TimeStruct.RTC_Minutes < 60);
+	assert(RTC_TimeStruct.RTC_Seconds < 60);
+	/* set alarm time 8:00:00 + user time everyday */
+	RTC_AlarmStructure.RTC_AlarmTime.RTC_H12     = RTC_H12_AM;
+	RTC_AlarmStructure.RTC_AlarmTime.RTC_Hours   = hour;
+	RTC_AlarmStructure.RTC_AlarmTime.RTC_Minutes = min;
+	RTC_AlarmStructure.RTC_AlarmTime.RTC_Seconds = sec;
+	RTC_AlarmStructure.RTC_AlarmDateWeekDay = 0x31; // Nonspecific
+	RTC_AlarmStructure.RTC_AlarmDateWeekDaySel = RTC_AlarmDateWeekDaySel_Date;
+	RTC_AlarmStructure.RTC_AlarmMask = RTC_AlarmMask_DateWeekDay; // Everyday
+	RTC_SetAlarm(RTC_Format_BCD, RTC_Alarm_A, &RTC_AlarmStructure);
+
+	/* Enable Alarm */
+	RTC_ITConfig(RTC_IT_ALRA, ENABLE);
+	RTC_AlarmCmd(RTC_Alarm_A, ENABLE);
+	RTC_ClearFlag(RTC_FLAG_ALRAF);
+}
+
+void ZobovManipulator::disableRTCAlarm() {
+	/* set time to 8:00:00 */
+	RTC_AlarmCmd(RTC_Alarm_A, DISABLE);   /* disable before setting or cann't write */
+
+	/* Disable Alarm */
+	RTC_ITConfig(RTC_IT_ALRA, DISABLE);
+	RTC_AlarmCmd(RTC_Alarm_A, ENABLE);
+}
+
+
+//USER API BEGIN
+
+void ZobovManipulator::Rotate(uint8_t num, degree deg) {
+	assert(num <= JOINT_CT);
+	joint[num]->rotate(deg);
+}
+
+void ZobovManipulator::Rotate(uint8_t num, degree deg, direction dir, speed spd) {
+	assert(num <= JOINT_CT);
+	joint[num]->setDirection(dir);
+	joint[num]->setSpeed(spd);
+	Rotate(num, deg);
+}
+
+void ZobovManipulator::Rotate(uint8_t num, degree deg, speed spd) {
+	assert(num <= JOINT_CT);
+	joint[num]->setSpeed(spd);
+	Rotate(num, deg);
+}
+
+void ZobovManipulator::Rotate(uint8_t num, degree deg, direction dir) {
+	assert(num <= JOINT_CT);
+	joint[num]->setDirection(dir);
+	Rotate(num, deg);
+}
+
+void ZobovManipulator::WaitTime(seconds sec) {
+    lockTimeLock();
+	enableRTCAlarm(sec);
+    /* Waiting for release... */
+    while(timeLock);
+}
+
+void ZobovManipulator::WaitAll() {
+	for(uint8_t i = 0; i < JOINT_CT; ++i)
+		while(joint[i]->getStatus() != IDLE);
+}
+//USER API END
 
 ZobovManipulator::~ZobovManipulator() {
 	for(uint8_t i = 0; i < JOINT_CT; ++i)
@@ -149,3 +301,45 @@ ZobovManipulator::~ZobovManipulator() {
 	for(uint8_t i = 0; i < LIM_SWITCH_CT; ++i)
 		delete lim_switch[i];
 }
+
+void ZobovManipulatorMathHelper::calcManipulatorRotateOld(const Point Manipulator, const array<degree, 3> in_angles, const array<dimention, 4> d, array<degree, 6> res_angles) {
+	Point P2;
+	P2.x = Manipulator.x - d[3]*cosf(in_angles[1])*cosf(in_angles[0]);
+	P2.y = Manipulator.y - d[3]*cosf(in_angles[1])*sinf(in_angles[0]);
+	P2.z = Manipulator.z - d[3]*cosf(in_angles[1])*sinf(in_angles[1]);
+	res_angles[0] = atanf(P2.x/P2.y);
+	return;
+}
+
+/*
+ * P - point to
+ * trg_angles - degree to target
+ */
+array<degree, 6> ZobovManipulatorMathHelper::calcManipulatorRotate(Point P, const array<degree, 3> trg_angles, const array<dimention, 4> d) {
+	Point tmpP;
+	array<degree, 6> res;
+	tmpP.x=P.x-d[3]*cos(trg_angles[1])*cos(trg_angles[0]);
+	tmpP.y=P.y-d[3]*cos(trg_angles[1])*sin(trg_angles[0]);
+	tmpP.z=P.z-d[3]*sin(trg_angles[1]);
+
+	res[0]=atan(tmpP.x/tmpP.y);
+
+	auto cosRes3 = -1*(tmpP.x*tmpP.x+tmpP.y*tmpP.y+(tmpP.z-d[0])*(tmpP.z-d[0])-d[1]*d[1]-d[2]*d[2])/(2*d[1]*d[2]);
+
+	res[2]=atan(-sqrt(1-cosRes3*cosRes3)/cosRes3);
+
+	auto tmpAngle0 = atan((tmpP.z-d[0])/sqrt(tmpP.x*tmpP.x+tmpP.y*tmpP.y));
+	auto tmpAngle1 = atan(d[2]*sin(res[2])/(d[1]-d[2]*cos(res[2])));
+	res[1]=tmpAngle0-tmpAngle1;
+
+	tmpAngle0=trg_angles[0]-res[0];
+	tmpAngle1=trg_angles[1]-res[1]-res[2];
+
+	res[3] = 0;
+
+	res[4] = res[1] - res[2] + trg_angles[1];
+	res[5] = trg_angles[2];
+
+	return res;
+}
+

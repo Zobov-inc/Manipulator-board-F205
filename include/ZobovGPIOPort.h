@@ -67,3 +67,17 @@ public:
 		GPIO_Init(GPIO[GPIONum], &GPIO_InitStructure);
 	}
 };
+
+class ZobovGraberGPIOPort : public ZobovGPIOPort {
+public:
+
+	ZobovGraberGPIOPort(uint32_t r, uint8_t g, uint8_t p) : ZobovGPIOPort(r, g, p) {
+		GPIO_InitTypeDef GPIO_InitStructure;
+		GPIO_InitStructure.GPIO_Speed = GPIO_Speed_25MHz;
+		GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
+		GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+		GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+		GPIO_InitStructure.GPIO_Pin = pin[pinNum];
+		GPIO_Init(GPIO[GPIONum], &GPIO_InitStructure);
+	}
+};
