@@ -32,7 +32,7 @@ void ZobovManipulator::Init() {
 	InitRTC();
 	InitJoint();
 	InitGraber();
-	//InitLimSwitch();
+	InitLimSwitch();
 	//RotateToStart();
 }
 
@@ -42,6 +42,8 @@ void ZobovManipulator::InitTIM() {
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM4, ENABLE);
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM5, ENABLE);
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM6, ENABLE);
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM8, ENABLE);
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM9, ENABLE);
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM12 , ENABLE);
 
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM10 , ENABLE);
@@ -61,16 +63,17 @@ void ZobovManipulator::InitPorts() {
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOB, ENABLE);
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOC, ENABLE);
+	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOD, ENABLE);
 
 	GPIO_InitTypeDef GPIO_InitStructure;
 
 	//led
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_25MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_13;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_2;
 	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
 	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-	GPIO_Init(GPIOC, &GPIO_InitStructure);
+	GPIO_Init(GPIOD, &GPIO_InitStructure);
 }
 
 void ZobovManipulator::InitEXTI() {
@@ -88,23 +91,26 @@ void ZobovManipulator::InitEXTI() {
 }
 
 void ZobovManipulator::InitJoint() {
-	joint[0] = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(11), 1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOB, 1, 9, 11), new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOA, 0, 12), 30);//switch at CLOCK
-	joint[1] = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(10), 1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOB, 1, 8, 10), new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOA, 0, 11), 30);//switch at CLOCK
-	joint[2] = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(12), 1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOB, 1, 14,12), new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOC, 2, 9),  30);//switch at COUNTERCLOCK
-	joint[3] = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(5),  1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOA, 0, 0, 5),  new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOA, 0, 10), 30);//switch at COUNTERCLOCK
+	//joint[0] = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(2), 1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOA, 0, 5, 2), new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOA, 0, 4), 30);//switch at CLOCK
+	joint[0] = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(3), 1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOA, 0, 6, 3), new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOA, 0, 1), 30);//switch at COUNTERCLOCK
+	//joint[1] = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(4), 1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOB, 1, 6, 4), new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOA, 0, 3), 30);//switch at COUNTERCLOCK
+	joint[1] = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(5), 1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOA, 0, 0, 5), new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOA, 0, 7), 30);//switch at COUNTERCLOCK
+	joint[2] = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(9), 1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOA, 0, 2, 9), new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOA, 0, 9), 30);//switch at COUNTERCLOCK
+	//joint[5] = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(8), 1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOC, 2, 6, 8), new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOA, 0, 8), 30);//switch at COUNTERCLOCK
+
 }
 
 void ZobovManipulator::InitLimSwitch() {
-	//lim_switch[0] = new ZobovManipulatorJointLimitingSwitch(new ZobovSwitchGPIOPort(RCC_AHB1Periph_GPIOB, 1, 0), joint[0], CLOCK);
-	//lim_switch[1] = new ZobovManipulatorJointLimitingSwitch(new ZobovSwitchGPIOPort(RCC_AHB1Periph_GPIOB, 1, 1), joint[0], COUNTERCLOCK);
-	lim_switch[0] = new ZobovManipulatorJointLimitingSwitch(new ZobovSwitchGPIOPort(RCC_AHB1Periph_GPIOC, 2, 0), joint[0], CLOCK);
-	lim_switch[1] = new ZobovManipulatorJointLimitingSwitch(new ZobovSwitchGPIOPort(RCC_AHB1Periph_GPIOC, 2, 1), joint[1], CLOCK);
-	lim_switch[2] = new ZobovManipulatorJointLimitingSwitch(new ZobovSwitchGPIOPort(RCC_AHB1Periph_GPIOC, 2, 2), joint[2], COUNTERCLOCK);
-	lim_switch[3] = new ZobovManipulatorJointLimitingSwitch(new ZobovSwitchGPIOPort(RCC_AHB1Periph_GPIOC, 2, 3), joint[3], COUNTERCLOCK);
+	lim_switch[0] = new ZobovManipulatorJointLimitingSwitch(new ZobovSwitchGPIOPort(RCC_AHB1Periph_GPIOB, 1, 13),  joint[0], CLOCK);
+	//lim_switch[1] = new ZobovManipulatorJointLimitingSwitch(new ZobovSwitchGPIOPort(RCC_AHB1Periph_GPIOB, 1, 12),  joint[1], COUNTERCLOCK);
+	lim_switch[1] = new ZobovManipulatorJointLimitingSwitch(new ZobovSwitchGPIOPort(RCC_AHB1Periph_GPIOB, 1, 11),  joint[1], COUNTERCLOCK);
+	lim_switch[2] = new ZobovManipulatorJointLimitingSwitch(new ZobovSwitchGPIOPort(RCC_AHB1Periph_GPIOB, 1, 9),  joint[2], CLOCK);
+	//lim_switch[4] = new ZobovManipulatorJointLimitingSwitch(new ZobovSwitchGPIOPort(RCC_AHB1Periph_GPIOB, 1, 2),  joint[4], CLOCK);
+	//lim_switch[5] = new ZobovManipulatorJointLimitingSwitch(new ZobovSwitchGPIOPort(RCC_AHB1Periph_GPIOB, 1, 1),  joint[5], CLOCK);
 }
 
 void ZobovManipulator::InitGraber() {
-	graber = new ZobovGrabber(new ZobovGraberGPIOPort(RCC_AHB1Periph_GPIOC, 2, 5));
+	graber = new ZobovGrabber(new ZobovGraberGPIOPort(RCC_AHB1Periph_GPIOC, 2, 4));
 }
 
 void ZobovManipulator::RotateToStart() {
@@ -113,10 +119,12 @@ void ZobovManipulator::RotateToStart() {
 //		joint[i]->rotate(3600*2);
 //	}
 
+	assert(JOINT_CT <= LIM_SWITCH_CT);
+
 	for(uint8_t i = 0; i < JOINT_CT; ++i) {
 		joint[i]->setDirectionToZero( (lim_switch[i]->getDir() == CLOCK)?COUNTERCLOCK:CLOCK );
 		joint[i]->setDirection( lim_switch[i]->getDir() );
-		joint[i]->rotate(360);
+		joint[i]->rotate(3600);
 	}
 
 	WaitAll();

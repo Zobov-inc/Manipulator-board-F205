@@ -218,8 +218,10 @@ extern "C" void RTC_Alarm_IRQHandler() {
 }
 
 
-int main()	{
-/*
+	int main()	{
+
+
+		/*
 	ZobovManipulator::Init();
 	//ToDo: set it
 	array<dimention, 4> dim = {0, 0, 0, 0};
@@ -257,21 +259,24 @@ int main()	{
 	auto res = ZobovManipulatorMathHelper::calcManipulatorRotate(p, trg, dim);
 */
 	ZobovManipulator::Init();
-
-	ZobovManipulator::Rotate(0, 10000, CLOCK);//ok
+	ZobovManipulator::Rotate(0, 100, COUNTERCLOCK);
 	ZobovManipulator::WaitAll();
+	ZobovManipulator::Rotate(1, 300, COUNTERCLOCK);
+	ZobovManipulator::WaitAll();
+	//ZobovManipulator::Rotate(2, 10000, CLOCK);//ok
+//	ZobovManipulator::WaitAll();
 //	ZobovManipulator::Rotate(1, 1000, CLOCK);//ok
 //	ZobovManipulator::WaitAll();
 //	ZobovManipulator::Rotate(2, 1000, CLOCK);//ok
 //	ZobovManipulator::WaitAll();
 //	ZobovManipulator::Rotate(3, 1000, CLOCK);//ok
 //	ZobovManipulator::WaitAll();
-	ZobovManipulator::Rotate(0, 10000, COUNTERCLOCK);//ok
+//	ZobovManipulator::Rotate(0, 10000, COUNTERCLOCK);//ok
 //	ZobovManipulator::Rotate(1, 1000, COUNTERCLOCK);//ok
 //	ZobovManipulator::Rotate(2, 1000, COUNTERCLOCK);//ok
 //	ZobovManipulator::Rotate(3, 1000, COUNTERCLOCK);//ok
 //	ZobovManipulator::WaitAll();
-//	ZobovManipulator::Grab(7);
+//	ZobovManipulator::Grab(3600);
 //	ZobovManipulator::Rotate(0, 36, COUNTERCLOCK);//ok
 //	ZobovManipulator::Rotate(1, 720, COUNTERCLOCK);//ok
 //	ZobovManipulator::Rotate(2, 36, COUNTERCLOCK);//ok
@@ -279,11 +284,57 @@ int main()	{
 //	ZobovManipulator::WaitAll();
 //	ZobovManipulator::UnGrab();
 
+
+
 	uint32_t i = 0;
+
 	for(;;)
 	{
 		++i;
-	//ZobovManipulator::RotateToStart();
+
+/* It works. Grab something hold it 5 secs and ungrab.
+		GPIO_SetBits(GPIOD, GPIO_Pin_2);
+		ZobovManipulator::Grab(5);
+		GPIO_ResetBits(GPIOD, GPIO_Pin_2);
+		ZobovManipulator::UnGrab();
+		ZobovManipulator::WaitTime(1);
+*/
+
+
+		//ZobovManipulator::Grab(10);
+		//ZobovManipulator::RotateToStart();
+		//GPIO_SetBits(GPIOA, GPIO_Pin_4);
+/*
+		ZobovManipulator::Rotate(0, 360, COUNTERCLOCK);//ok
+		ZobovManipulator::WaitAll();
+
+		ZobovManipulator::Rotate(1, 360, COUNTERCLOCK);//ok
+		ZobovManipulator::WaitAll();
+
+		ZobovManipulator::Rotate(2, 360, COUNTERCLOCK);//ok
+		ZobovManipulator::WaitAll();
+
+		ZobovManipulator::Rotate(3, 360, COUNTERCLOCK);//ok
+		ZobovManipulator::WaitAll();
+*/
+//		ZobovManipulator::Rotate(0, 720, COUNTERCLOCK);//ok
+//		ZobovManipulator::WaitAll();
+//		ZobovManipulator::WaitTime(5);
+//		ZobovManipulator::RotateToStart();
+//		ZobovManipulator::WaitTime(5);
+
+//		ZobovManipulator::Rotate(0, 90, CLOCK);//ok
+//		ZobovManipulator::WaitTime(3);
+//		ZobovManipulator::RotateToStart();
+
+//		ZobovManipulator::Rotate(1, 10000, CLOCK);//ok
+//		ZobovManipulator::Rotate(2, 10000, CLOCK);//ok
+//		ZobovManipulator::Rotate(3, 10000, CLOCK);//ok
+//		ZobovManipulator::Rotate(4, 10000, CLOCK);//ok
+//		ZobovManipulator::Rotate(5, 10000, CLOCK);//ok
+		//ZobovManipulator::Grab(36);
+		//ZobovManipulator::WaitAll();
+
 	}
 }
 

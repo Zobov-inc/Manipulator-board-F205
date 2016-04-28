@@ -15,7 +15,7 @@
 #include "ZobovManipulatorJoint.h"
 
 OCnFunc* ZobovManipulatorJoint::OCnFunction[] = {TIM_OC1Init, TIM_OC2Init, TIM_OC3Init, TIM_OC4Init};
-IRQn ZobovManipulatorJoint::TIMIRQn[] = {TIM2_IRQn, TIM2_IRQn, TIM3_IRQn, TIM4_IRQn, TIM2_IRQn, TIM2_IRQn, TIM2_IRQn, TIM2_IRQn, TIM2_IRQn, TIM1_UP_TIM10_IRQn, TIM1_TRG_COM_TIM11_IRQn, TIM8_BRK_TIM12_IRQn, TIM2_IRQn};
+IRQn ZobovManipulatorJoint::TIMIRQn[] = {TIM2_IRQn, TIM2_IRQn, TIM3_IRQn, TIM4_IRQn, TIM5_IRQn, TIM6_DAC_IRQn, TIM7_IRQn, TIM8_UP_TIM13_IRQn, TIM1_BRK_TIM9_IRQn, TIM1_UP_TIM10_IRQn, TIM1_TRG_COM_TIM11_IRQn, TIM8_BRK_TIM12_IRQn, TIM2_IRQn};
 uint8_t ZobovManipulatorJoint::GPIO_AF[] = {GPIO_AF_TIM1, GPIO_AF_TIM2, GPIO_AF_TIM3, GPIO_AF_TIM4, GPIO_AF_TIM5, 0, 0, GPIO_AF_TIM8, GPIO_AF_TIM9, GPIO_AF_TIM10, GPIO_AF_TIM11, GPIO_AF_TIM12, GPIO_AF_TIM13, GPIO_AF_TIM14};
 
 ZobovManipulatorJoint::ZobovManipulatorJoint(ZobovJointTIM *t, uint8_t o, ZobovManipulatorStepGPIOPort *s, ZobovManipulatorDirGPIOPort *d, degree dToZ, ZobovEncoderTIM* e = NULL) : TIM(t), OCn(o-1), st(s), dir(d), encTIM(e), status(IDLE), dir_lock{0,0}, degreeToZero(dToZ) {
