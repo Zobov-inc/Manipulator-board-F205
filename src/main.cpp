@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+
 #include <ZobovGPIOPort.h>
 
 #include "diag/Trace.h"
@@ -218,9 +220,7 @@ extern "C" void RTC_Alarm_IRQHandler() {
 }
 
 
-	int main()	{
-
-
+int main() {
 		/*
 	ZobovManipulator::Init();
 	//ToDo: set it
@@ -235,7 +235,7 @@ extern "C" void RTC_Alarm_IRQHandler() {
 
 	ZobovManipulatorMathHelper::calcManipulatorRotate(Manipulator, target_degree, dim, res_degree);
 	for(auto i = 0; i < res_degree.size(); ++i)
-		if (res_degree[i] >= 0) {
+		if (res_degree[i] >= 0) {noteps
 			res_dir[i] = CLOCK;
 		}
 		else {
@@ -259,10 +259,8 @@ extern "C" void RTC_Alarm_IRQHandler() {
 	auto res = ZobovManipulatorMathHelper::calcManipulatorRotate(p, trg, dim);
 */
 	ZobovManipulator::Init();
-	ZobovManipulator::Rotate(0, 100, COUNTERCLOCK);
-	ZobovManipulator::WaitAll();
-	ZobovManipulator::Rotate(1, 300, COUNTERCLOCK);
-	ZobovManipulator::WaitAll();
+	//ZobovManipulator::WaitAll();
+
 	//ZobovManipulator::Rotate(2, 10000, CLOCK);//ok
 //	ZobovManipulator::WaitAll();
 //	ZobovManipulator::Rotate(1, 1000, CLOCK);//ok
@@ -283,14 +281,62 @@ extern "C" void RTC_Alarm_IRQHandler() {
 //	ZobovManipulator::Rotate(3, 36, COUNTERCLOCK);//ok
 //	ZobovManipulator::WaitAll();
 //	ZobovManipulator::UnGrab();
-
-
-
-	uint32_t i = 0;
-
+	ZobovManipulator::Rotate(0, 100, CLOCK);
+//	int16_t uart_data[2];
+//	memset(uart_data, 0, 8);
+//	uint16_t led;
+volatile uint32_t i = 0;
+/*
 	for(;;)
 	{
+
 		++i;
+		ZobovManipulator::Rotate(0, 10, COUNTERCLOCK);
+		ZobovManipulator::WaitAll();
+	//	ZobovManipulator::Rotate(1, 100, COUNTERCLOCK);
+	//  ZobovManipulator::WaitAll();
+	//	ZobovManipulator::Rotate(2, 100, COUNTERCLOCK);
+	//	ZobovManipulator::WaitAll();
+	//	ZobovManipulator::Rotate(3, 100, COUNTERCLOCK);
+	//	ZobovManipulator::WaitAll();
+	ZobovManipulator::RotateToStart();
+	}
+	*/
+//		i = 0;
+//		uart_data[0] = 0;
+//		while(true) {
+//			if (UART4->SR & USART_SR_RXNE) {
+//				if (i++ % 2) {
+//					uart_data[0] += UART4->DR << 8;
+//					if (uart_data[0] == 1000) {
+//						i = 0;
+//						break;
+//					}
+//					else
+//						uart_data[0] = 0;
+//				}
+//				else
+//					uart_data[0] += UART4->DR;
+//				USART_ClearFlag(UART4, USART_FLAG_LBD | USART_FLAG_TC  | USART_FLAG_RXNE );
+//			}
+//		}
+//		i = 0;
+//		memset(uart_data, 0, 8);
+//		while(i < 4)
+//		{
+//			if (UART4->SR & USART_SR_RXNE) {
+//				if (i % 2)
+//					uart_data[i++/2] += UART4->DR << 8;
+//				else
+//					uart_data[i++/2] += UART4->DR;
+//				USART_ClearFlag(UART4, USART_FLAG_LBD | USART_FLAG_TC  | USART_FLAG_RXNE );
+//			}
+//		}
+//
+////		USART_ClearFlag(UART4, USART_FLAG_LBD | USART_FLAG_TC  | USART_FLAG_RXNE );
+//		while(!(UART4->SR & USART_SR_TC)); //Проверка завершения передачи предыдущих данных
+//		UART4->DR = 7;
+//		USART_ClearFlag(UART4, USART_FLAG_LBD | USART_FLAG_TC  | USART_FLAG_RXNE );
 
 /* It works. Grab something hold it 5 secs and ungrab.
 		GPIO_SetBits(GPIOD, GPIO_Pin_2);
@@ -335,7 +381,7 @@ extern "C" void RTC_Alarm_IRQHandler() {
 		//ZobovManipulator::Grab(36);
 		//ZobovManipulator::WaitAll();
 
-	}
+
 }
 
 #pragma GCC diagnostic pop

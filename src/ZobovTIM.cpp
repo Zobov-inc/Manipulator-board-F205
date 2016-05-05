@@ -7,7 +7,7 @@ TIM_TypeDef *ZobovJointTIM::TIMArray[] = {TIM1, TIM2, TIM3, TIM4, TIM5, TIM6, TI
 IRQn_Type ZobovJointTIM::TIMIRQnArray[] = {TIM1_UP_TIM10_IRQn, TIM2_IRQn, TIM3_IRQn, TIM4_IRQn, TIM5_IRQn, TIM6_DAC_IRQn, TIM7_IRQn, TIM8_UP_TIM13_IRQn, TIM1_BRK_TIM9_IRQn, TIM1_UP_TIM10_IRQn, TIM1_TRG_COM_TIM11_IRQn, TIM8_BRK_TIM12_IRQn, TIM8_UP_TIM13_IRQn};
 ZobovJointTIM *ZobovJointTIM::IRQFuncArray[] = {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL};
 
-const uint32_t ZobovJointTIM::period = (uint32_t)((SystemCoreClock / 17000 ) - 1);
+const uint32_t ZobovJointTIM::period = (uint32_t)((SystemCoreClock / 7000 ) - 1); //17000
 
 void ZobovEncoderTIM::IRQ() {
 	//Stop jount TIM
