@@ -34,7 +34,7 @@ void ZobovManipulator::Init() {
 	InitRTC();
 	InitJoint();
 	InitGraber();
-	//InitLimSwitch();
+	InitLimSwitch();
 	RotateToStart();
 }
 
@@ -141,26 +141,24 @@ void ZobovManipulator::InitEXTI() {
 void ZobovManipulator::InitJoint() {
 	//joint[3] = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(2), 1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOA, 0, 5, 2), new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOA, 0, 4), 30);//switch at CLOCK
 
-	/*
-	joint[0] = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(3), 1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOA, 0, 6, 3), new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOA, 0, 1), 30);//switch at COUNTERCLOCK
-	joint[1] = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(4), 1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOB, 1, 6, 4), new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOA, 0, 3), 30);//switch at COUNTERCLOCK
-	joint[2] = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(5), 1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOA, 0, 0, 5), new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOA, 0, 7), 30);//switch at COUNTERCLOCK
-	*/
 
-	joint[0] = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(9), 1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOA, 0, 2, 9), new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOA, 0, 9), 30);//switch at COUNTERCLOCK
+	joint[0] = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(3), 1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOA, 0, 6, 3), new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOA, 0, 1), 0);//switch at COUNTERCLOCK
+	joint[1] = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(4), 1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOB, 1, 6, 4), new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOA, 0, 3), 0);//switch at COUNTERCLOCK
+	joint[2] = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(5), 1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOA, 0, 0, 5), new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOA, 0, 7), 0);//switch at COUNTERCLOCK
+	//joint[3] = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(9), 1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOA, 0, 2, 9), new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOA, 0, 9), 0);//switch at COUNTERCLOCK
+
 	//joint[5] = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(8), 1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOC, 2, 6, 8), new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOA, 0, 8), 30);//switch at COUNTERCLOCK
 
 }
 
 void ZobovManipulator::InitLimSwitch() {
 
-	/*
+
 	lim_switch[0] = new ZobovManipulatorJointLimitingSwitch(new ZobovSwitchGPIOPort(RCC_AHB1Periph_GPIOB, 1, 13),  joint[0], CLOCK);
 	lim_switch[1] = new ZobovManipulatorJointLimitingSwitch(new ZobovSwitchGPIOPort(RCC_AHB1Periph_GPIOB, 1, 12),  joint[1], COUNTERCLOCK);
 	lim_switch[2] = new ZobovManipulatorJointLimitingSwitch(new ZobovSwitchGPIOPort(RCC_AHB1Periph_GPIOB, 1, 11),  joint[2], CLOCK);
-	*/
+	//lim_switch[3] = new ZobovManipulatorJointLimitingSwitch(new ZobovSwitchGPIOPort(RCC_AHB1Periph_GPIOB, 1, 10),  joint[3], CLOCK);
 
-	lim_switch[0] = new ZobovManipulatorJointLimitingSwitch(new ZobovSwitchGPIOPort(RCC_AHB1Periph_GPIOB, 1, 10),  joint[0], CLOCK);
 	//lim_switch[4] = new ZobovManipulatorJointLimitingSwitch(new ZobovSwitchGPIOPort(RCC_AHB1Periph_GPIOB, 1, 2),  joint[4], CLOCK);
 	//lim_switch[5] = new ZobovManipulatorJointLimitingSwitch(new ZobovSwitchGPIOPort(RCC_AHB1Periph_GPIOB, 1, 1),  joint[5], CLOCK);
 }
@@ -182,14 +180,20 @@ void ZobovManipulator::RotateToStart() {
 		joint[i]->setDirection( lim_switch[i]->getDir() );
 		joint[i]->rotate(3600);
 	}
-
+/*
+	joint[3]->setDirectionToZero(CLOCK);
+	joint[3]->setDirection(CLOCK);
+	joint[3]->setSpeed(6000);
+	joint[3]->rotate(3600);
+*/
 	WaitAll();
-
+	/* мешала работать
 	for(uint8_t i = 0; i < JOINT_CT; ++i) {
-		joint[i]->rotateToZero();
-	}
+			joint[i]->rotateToZero();
+		}
 
-	WaitAll();
+		WaitAll();
+	*/
 }
 
 void ZobovManipulator::InitNVIC() {

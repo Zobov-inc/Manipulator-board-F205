@@ -90,22 +90,37 @@ void ZobovManipulatorJoint::setStatus(jointStatus s) {
 }
 
 error_joint ZobovManipulatorJoint::setSpeed(speed s) {
-	uint32_t pulse;
+	uint32_t pulse, per;
+
+	TIM_TimeBaseInitTypeDef TIM_TimeBaseStructure;
+
 	if (!s) {
 		pulse = 0;
+		per = (uint32_t)((SystemCoreClock / 15000 ) - 1);
 	}
 	else {
-		//if (TIM->isLock()) return 1;
+		//if (TIM->isLock()) return 1
 		pulse = (5 * (TIM->period - 1) / 10); //TODO get pulse from speed
+		per = (uint32_t)((SystemCoreClock / 15000 ) - 1);
 	}
-
+	if (s>1) {
+		per = (uint32_t)((SystemCoreClock / s ) - 1);
+	}
 /* Channel 1 output configuration */
+
 	TIM_OCStructInit(&TIM_OCInitStructure);
 	TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM1;
 	TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable;
 	TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_Low;
 	TIM_OCInitStructure.TIM_Pulse = pulse;
 	OCnFunction[OCn](TIM->getTIM(), &TIM_OCInitStructure);
+
+	TIM_TimeBaseStructInit(&TIM_TimeBaseStructure);
+	TIM_TimeBaseStructure.TIM_Prescaler = 0;
+	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
+	TIM_TimeBaseStructure.TIM_Period = per;
+	TIM_TimeBaseStructure.TIM_ClockDivision = 0;
+	TIM_TimeBaseInit(TIM->getTIM(), &TIM_TimeBaseStructure);
 
 	return 0;
 }

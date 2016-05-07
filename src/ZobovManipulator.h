@@ -22,7 +22,7 @@ typedef float dimention;
 
 class ZobovManipulator {
 public:
-	static constexpr uint8_t JOINT_CT = 1;
+	static constexpr uint8_t JOINT_CT = 3;
 	static constexpr uint8_t LIM_SWITCH_CT = JOINT_CT;//*2 if you want two limiting switches per axe.
 
 private:

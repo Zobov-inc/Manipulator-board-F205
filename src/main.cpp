@@ -220,7 +220,71 @@ extern "C" void RTC_Alarm_IRQHandler() {
 }
 
 
-int main() {
+ int main() {
+
+	volatile uint32_t i = 0;
+
+
+	ZobovManipulator::Init();
+
+	ZobovManipulator::Rotate(0, 300, COUNTERCLOCK, 1);
+	ZobovManipulator::WaitAll();
+
+	ZobovManipulator::Rotate(1, 2600, CLOCK, 1);
+	ZobovManipulator::WaitAll();
+
+	ZobovManipulator::Rotate(2, 100, COUNTERCLOCK, 1);
+	ZobovManipulator::WaitAll();
+
+	ZobovManipulator::Grab(2);
+	ZobovManipulator::Rotate(1, 70, CLOCK, 1);
+	ZobovManipulator::WaitAll();
+	ZobovManipulator::Grab(2);
+	ZobovManipulator::Rotate(1, 300, COUNTERCLOCK, 1);
+	ZobovManipulator::WaitAll();
+	ZobovManipulator::Grab(2);
+	ZobovManipulator::Rotate(0, 200, COUNTERCLOCK, 1);
+	ZobovManipulator::WaitAll();
+	ZobovManipulator::Grab(2);
+
+	for(;;)
+			{
+
+				ZobovManipulator::UnGrab();
+				ZobovManipulator::WaitTime(2);
+				i++;
+
+			}
+	/*
+	ZobovManipulator::Rotate(1, 300, COUNTERCLOCK, 1);
+	ZobovManipulator::WaitAll();
+
+	ZobovManipulator::UnGrab();
+	ZobovManipulator::WaitTime(10);
+	*/
+
+
+
+
+	/*
+		ZobovManipulator::Rotate(0, 500, COUNTERCLOCK, 1);
+		ZobovManipulator::Rotate(1, 3000, CLOCK, 1);
+		ZobovManipulator::Rotate(2, 3000, COUNTERCLOCK, 1);
+		ZobovManipulator::WaitAll();
+	*/
+
+
+		for(;;)
+		{
+			i++;
+			/*
+			ZobovManipulator::Grab(2);
+			ZobovManipulator::UnGrab();
+			ZobovManipulator::WaitTime(2);
+			i++;
+			*/
+		}
+
 		/*
 	ZobovManipulator::Init();
 	//ToDo: set it
@@ -258,11 +322,14 @@ int main() {
 	array<degree, 3> trg = { 45, 45, 0 };
 	auto res = ZobovManipulatorMathHelper::calcManipulatorRotate(p, trg, dim);
 */
-	ZobovManipulator::Init();
+
+
+
 	//ZobovManipulator::WaitAll();
 
-	//ZobovManipulator::Rotate(2, 10000, CLOCK);//ok
-//	ZobovManipulator::WaitAll();
+	//ZobovManipulator::Rotate(1, 1000, CLOCK);
+	//ZobovManipulator::Rotate(2, 100, COUNTERCLOCK);//ok
+	//ZobovManipulator::WaitAll();
 //	ZobovManipulator::Rotate(1, 1000, CLOCK);//ok
 //	ZobovManipulator::WaitAll();
 //	ZobovManipulator::Rotate(2, 1000, CLOCK);//ok
@@ -281,16 +348,14 @@ int main() {
 //	ZobovManipulator::Rotate(3, 36, COUNTERCLOCK);//ok
 //	ZobovManipulator::WaitAll();
 //	ZobovManipulator::UnGrab();
-	ZobovManipulator::Rotate(0, 100, CLOCK);
+//	ZobovManipulator::Rotate(0, 100, CLOCK);
 //	int16_t uart_data[2];
 //	memset(uart_data, 0, 8);
 //	uint16_t led;
-volatile uint32_t i = 0;
-/*
-	for(;;)
-	{
+	//ZobovManipulator::Rotate(3, 3500, COUNTERCLOCK, 6000);
+	/*
+	}
 
-		++i;
 		ZobovManipulator::Rotate(0, 10, COUNTERCLOCK);
 		ZobovManipulator::WaitAll();
 	//	ZobovManipulator::Rotate(1, 100, COUNTERCLOCK);
