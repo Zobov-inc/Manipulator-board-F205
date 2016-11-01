@@ -30,7 +30,7 @@ private:
 	uint8_t afn;
 
 public:
-	ZobovManipulatorStepGPIOPort(uint32_t r, uint8_t g, uint8_t p, uint8_t a) : ZobovGPIOPort(r, g, p), afn(a) {
+	ZobovManipulatorStepGPIOPort(uint32_t r, uint8_t g, uint8_t p, uint8_t a) : ZobovGPIOPort(r, g, p), afn(a-1) {
 		GPIO_InitTypeDef GPIO_InitStructure;
 		GPIO_InitStructure.GPIO_Speed = GPIO_Speed_25MHz;
 		GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
@@ -38,7 +38,7 @@ public:
 		GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
 		GPIO_InitStructure.GPIO_Pin = pin[pinNum];
 		GPIO_Init(GPIO[GPIONum], &GPIO_InitStructure);
-		GPIO_PinAFConfig(GPIO[GPIONum], pinSource[p], ZobovManipulatorJoint::GPIO_AF[a]);
+		GPIO_PinAFConfig(GPIO[GPIONum], pinSource[p], ZobovManipulatorJoint::GPIO_AF[afn]);
 	}
 };
 

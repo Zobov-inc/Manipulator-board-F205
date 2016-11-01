@@ -19,15 +19,17 @@
 #include "stm32f2xx_usart.h"
 
 using std::array;
-
 ZobovManipulatorJoint *ZobovManipulator::joint[JOINT_CT] = { NULL };
 ZobovManipulatorJointLimitingSwitch *ZobovManipulator::lim_switch[LIM_SWITCH_CT] = { NULL };
+ZobovManipulatorButtonLimitingSwitch *ZobovManipulator::button = NULL;
 ZobovGrabber* ZobovManipulator::graber = NULL;
+ZobovUSART* ZobovManipulator::usart = NULL;
 bool ZobovManipulator::timeLock = false;
+bool ZobovManipulator::ready = false;
 
-void ZobovManipulator::Init() {
+void ZobovManipulator::Init(uint64_t dbg) {
 	InitPorts();
-	//InitUART();
+	InitUSART();
 	InitEXTI();
 	InitTIM();
 	InitNVIC();
@@ -35,6 +37,19 @@ void ZobovManipulator::Init() {
 	InitJoint();
 	InitGraber();
 	InitLimSwitch();
+	InitButtonSwitch();
+
+	if(dbg & 1<<0) {
+		Rotate(1, 40, CLOCK);
+		Rotate(2, 30, COUNTERCLOCK);
+		WaitAll();
+	}
+
+	if(dbg & 1<<1) {
+		degree q[JOINT_CT] = {};
+		Rollback(q, q);
+	}
+
 	RotateToStart();
 }
 
@@ -46,9 +61,9 @@ void ZobovManipulator::InitTIM() {
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM6, ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM8, ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM9, ENABLE);
-	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM12 , ENABLE);
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM12, ENABLE);
 
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM10 , ENABLE);
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM10, ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM11, ENABLE);
 
 
@@ -76,53 +91,15 @@ void ZobovManipulator::InitPorts() {
 	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
 	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
 	GPIO_Init(GPIOD, &GPIO_InitStructure);
-
-/*
-	GPIO_PinAFConfig(GPIOC, GPIO_PinSource10, GPIO_AF_UART4); //PD5 to TX USART2
-	GPIO_PinAFConfig(GPIOC, GPIO_PinSource11, GPIO_AF_UART4); //PD6 to RX USART2
-
-	// Настраиваем ногу PC10 как выход TX UARTа (TxD)
-	// Причем не просто выход, а выход с альтернативной функцией
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_10;
-	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
-	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-	GPIO_Init(GPIOC, &GPIO_InitStructure);
-
-	// Настраиваем ногу PC11 как вход RX UARTа (RxD)
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_11;
-	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
-	GPIO_Init(GPIOC, &GPIO_InitStructure);
-*/
 }
 
-/*
-void ZobovManipulator::InitUART() {
-	RCC_APB1PeriphClockCmd(RCC_APB1Periph_UART4, ENABLE);
 
-	//Включаем порты и UART1
-	//Выключаем JTAG (он занимает ноги нужные нам)
-//	GPIO_PinRemapConfig(GPIO_Remap_SWJ_JTAGDisable, ENABLE);
+void ZobovManipulator::InitUSART() {
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART6, ENABLE);
 
-
-	//Заполняем структуру настройками UARTa
-	USART_InitTypeDef uart_struct;
-	uart_struct.USART_BaudRate            = 9600;
-	uart_struct.USART_WordLength          = USART_WordLength_8b;
-	uart_struct.USART_StopBits            = USART_StopBits_1;
-	uart_struct.USART_Parity              = USART_Parity_No ;
-	uart_struct.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
-	uart_struct.USART_Mode                = USART_Mode_Rx | USART_Mode_Tx;
-	//Инициализируем UART
-	USART_Init(UART4, &uart_struct);
-	USART_ClearFlag(UART4, USART_FLAG_LBD | USART_FLAG_TC  | USART_FLAG_RXNE );
-	//Включаем UART
-	USART_Cmd(UART4, ENABLE);
-
+	usart = new ZobovUSART(6, 6, 7);
 }
-*/
+
 
 void ZobovManipulator::InitEXTI() {
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_SYSCFG, ENABLE);
@@ -139,93 +116,63 @@ void ZobovManipulator::InitEXTI() {
 }
 
 void ZobovManipulator::InitJoint() {
-	//joint[3] = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(2), 1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOA, 0, 5, 2), new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOA, 0, 4), 30);//switch at CLOCK
 
-
-	joint[0] = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(3), 1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOA, 0, 6, 3), new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOA, 0, 1), 0);//switch at COUNTERCLOCK
-	joint[1] = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(4), 1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOB, 1, 6, 4), new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOA, 0, 3), 0);//switch at COUNTERCLOCK
-	joint[2] = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(5), 1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOA, 0, 0, 5), new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOA, 0, 7), 0);//switch at COUNTERCLOCK
-	//joint[3] = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(9), 1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOA, 0, 2, 9), new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOA, 0, 9), 0);//switch at COUNTERCLOCK
-
-	//joint[5] = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(8), 1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOC, 2, 6, 8), new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOA, 0, 8), 30);//switch at COUNTERCLOCK
+	joint[0] = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(3), 1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOA, 0, 6, 3), new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOA, 0, 1), 30, 3.4);//switch at COUNTERCLOCK
+	joint[1] = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(4), 1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOB, 1, 6, 4), new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOA, 0, 3), 30, 47);//switch at COUNTERCLOCK
+	joint[2] = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(5), 1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOA, 0, 0, 5), new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOA, 0, 7), 30, 50);//switch at COUNTERCLOCK
+	joint[3] = new ZobovManipulatorJointStepperMotorInc(new ZobovJointTIM(9), 1, new ZobovManipulatorStepGPIOPort(RCC_AHB1Periph_GPIOA, 0, 2, 9), new ZobovManipulatorDirGPIOPort(RCC_AHB1Periph_GPIOA, 0, 9), 30, 0.52);//switch at COUNTERCLOCK
+	joint[3]->setSpeed(20000);
 
 }
 
 void ZobovManipulator::InitLimSwitch() {
-
-
 	lim_switch[0] = new ZobovManipulatorJointLimitingSwitch(new ZobovSwitchGPIOPort(RCC_AHB1Periph_GPIOB, 1, 13),  joint[0], CLOCK);
 	lim_switch[1] = new ZobovManipulatorJointLimitingSwitch(new ZobovSwitchGPIOPort(RCC_AHB1Periph_GPIOB, 1, 12),  joint[1], COUNTERCLOCK);
-	lim_switch[2] = new ZobovManipulatorJointLimitingSwitch(new ZobovSwitchGPIOPort(RCC_AHB1Periph_GPIOB, 1, 11),  joint[2], CLOCK);
-	//lim_switch[3] = new ZobovManipulatorJointLimitingSwitch(new ZobovSwitchGPIOPort(RCC_AHB1Periph_GPIOB, 1, 10),  joint[3], CLOCK);
+	lim_switch[2] = new ZobovManipulatorJointLimitingSwitch(new ZobovSwitchGPIOPort(RCC_AHB1Periph_GPIOB, 1, 9),  joint[2], CLOCK);
+	lim_switch[3] = new ZobovManipulatorJointLimitingSwitch(new ZobovSwitchGPIOPort(RCC_AHB1Periph_GPIOB, 1, 1),  joint[3], CLOCK);
 
 	//lim_switch[4] = new ZobovManipulatorJointLimitingSwitch(new ZobovSwitchGPIOPort(RCC_AHB1Periph_GPIOB, 1, 2),  joint[4], CLOCK);
 	//lim_switch[5] = new ZobovManipulatorJointLimitingSwitch(new ZobovSwitchGPIOPort(RCC_AHB1Periph_GPIOB, 1, 1),  joint[5], CLOCK);
+}
+
+void ZobovManipulator::InitButtonSwitch() {
+	button = new ZobovManipulatorButtonLimitingSwitch(new ZobovSwitchGPIOPort(RCC_AHB1Periph_GPIOB, 1, 11), &ready);
 }
 
 void ZobovManipulator::InitGraber() {
 	graber = new ZobovGrabber(new ZobovGraberGPIOPort(RCC_AHB1Periph_GPIOC, 2, 4));
 }
 
-void ZobovManipulator::RotateToStart() {
-//	for(uint8_t i = 0; i < 2; ++i) {
-//		joint[i]->setDirection(CLOCK);
-//		joint[i]->rotate(3600*2);
-//	}
+void ZobovManipulator::Rollback(degree q[JOINT_CT], degree sq[JOINT_CT]) {
+	uint32_t a;
+	array<uint8_t, JOINT_CT> seq = { 1, 2, 3, 0 };
+	for(uint8_t i : seq) {
+		a = abs(q[i]-sq[i]);
+		if ( a > joint[i]->getRollbackDegree() ) {
+			joint[i]->setDirection( lim_switch[i]->getDir());
+			joint[i]->rotate(a - joint[i]->getRollbackDegree());
+		}
+		else {
+			joint[i]->setDirection( lim_switch[i]->getDir() == CLOCK ? COUNTERCLOCK : CLOCK );
+			joint[i]->rotate(joint[i]->getRollbackDegree() - a);
+		}
+	}
+	WaitAll();
+}
 
+void ZobovManipulator::RotateToStart() {
 	assert(JOINT_CT <= LIM_SWITCH_CT);
 
-	for(uint8_t i = 0; i < JOINT_CT; ++i) {
-		joint[i]->setDirectionToZero( (lim_switch[i]->getDir() == CLOCK)?COUNTERCLOCK:CLOCK );
+	array<uint8_t, JOINT_CT> seq = { 1, 2, 3, 0 };
+	for(int8_t i : seq) {
+		joint[i]->setDirectionToZero( lim_switch[i]->getDir());
 		joint[i]->setDirection( lim_switch[i]->getDir() );
 		joint[i]->rotate(3600);
-	}
-/*
-	joint[3]->setDirectionToZero(CLOCK);
-	joint[3]->setDirection(CLOCK);
-	joint[3]->setSpeed(6000);
-	joint[3]->rotate(3600);
-*/
-	WaitAll();
-	/* мешала работать
-	for(uint8_t i = 0; i < JOINT_CT; ++i) {
-			joint[i]->rotateToZero();
-		}
-
 		WaitAll();
-	*/
+	}
 }
 
 void ZobovManipulator::InitNVIC() {
-	//NVIC_InitTypeDef nvicStructure;
-
-	/*
-	nvicStructure.NVIC_IRQChannel = TIM2_IRQn;
-	nvicStructure.NVIC_IRQChannelPreemptionPriority = 0;
-	nvicStructure.NVIC_IRQChannelSubPriority = 0;
-	nvicStructure.NVIC_IRQChannelCmd = ENABLE;
-	NVIC_Init(&nvicStructure);
-	*/
-
-	/*
-	nvicStructure.NVIC_IRQChannel = TIM3_IRQn;
-	nvicStructure.NVIC_IRQChannelPreemptionPriority = 0;
-	nvicStructure.NVIC_IRQChannelSubPriority = 1;
-	nvicStructure.NVIC_IRQChannelCmd = ENABLE;
-	NVIC_Init(&nvicStructure);
-	TIM_ITConfig(TIM3, TIM_IT_Update, ENABLE);
-	*/
-
-	/*nvicStructure.NVIC_IRQChannel = ADC_IRQn;
-	nvicStructure.NVIC_IRQChannelPreemptionPriority = 1;
-	nvicStructure.NVIC_IRQChannelSubPriority = 2;
-	nvicStructure.NVIC_IRQChannelCmd = ENABLE;
-	NVIC_Init(&nvicStructure);
-	ADC_ITConfig(ADC1, ADC_IT_EOC, ENABLE);
-	ADC_ITConfig(ADC1, ADC_IT_AWD, DISABLE);
-	ADC_ITConfig(ADC1, ADC_IT_OVR, DISABLE);
-	ADC_ITConfig(ADC1, ADC_IT_JEOC, DISABLE);
-	*/
 
 	NVIC_InitTypeDef NVIC_InitStructure;
 	/* Enable the RTC Alarm Interrupt */
@@ -257,24 +204,6 @@ void ZobovManipulator::InitRTC() {
 
     RTC_AlarmCmd(RTC_Alarm_A, DISABLE);   /* disable before setting or cann't write */
 	RTC_AlarmCmd(RTC_Alarm_B, DISABLE);   /* disable before setting or cann't write */
-//
-//	RTC_AlarmTypeDef RTC_AlarmStructure;
-//
-//	/* set alarm time 8:30:0 everyday */
-//	RTC_AlarmStructure.RTC_AlarmTime.RTC_H12     = RTC_H12_AM;
-//	RTC_AlarmStructure.RTC_AlarmTime.RTC_Hours   = 0x08;
-//	RTC_AlarmStructure.RTC_AlarmTime.RTC_Minutes = 0x30;
-//	RTC_AlarmStructure.RTC_AlarmTime.RTC_Seconds = 0x0;
-//	RTC_AlarmStructure.RTC_AlarmDateWeekDay = 0x31; // Nonspecific
-//	RTC_AlarmStructure.RTC_AlarmDateWeekDaySel = RTC_AlarmDateWeekDaySel_Date;
-//	RTC_AlarmStructure.RTC_AlarmMask = RTC_AlarmMask_DateWeekDay; // Everyday
-//	//RTC_AlarmStructure.RTC_AlarmMask = RTC_AlarmMask_All; // Everysecond
-//	RTC_SetAlarm(RTC_Format_BCD, RTC_Alarm_A, &RTC_AlarmStructure);
-//
-//	/* Enable Alarm */
-//	RTC_ITConfig(RTC_IT_ALRA, ENABLE);
-//	RTC_AlarmCmd(RTC_Alarm_A, ENABLE);
-//	RTC_ClearFlag(RTC_FLAG_ALRAF);
 }
 
 
@@ -326,28 +255,29 @@ void ZobovManipulator::disableRTCAlarm() {
 
 //USER API BEGIN
 
-void ZobovManipulator::Rotate(uint8_t num, degree deg) {
-	assert(num <= JOINT_CT);
-	joint[num]->rotate(deg);
-}
+//void ZobovManipulator::Rotate(uint8_t num, degree deg) {
+//	assert(num <= JOINT_CT);
+//	joint[num]->rotate(deg);
+//}
+
+//void ZobovManipulator::Rotate(uint8_t num, degree deg, speed spd) {
+//	assert(num <= JOINT_CT);
+//	joint[num]->setSpeed(spd);
+//	Rotate(num, deg);
+//}
+
+//void ZobovManipulator::Rotate(uint8_t num, degree deg, direction dir) {
+//	assert(num <= JOINT_CT);
+//	joint[num]->setDirection(dir);
+//	Rotate(num, deg);
+//}
 
 void ZobovManipulator::Rotate(uint8_t num, degree deg, direction dir, speed spd) {
 	assert(num <= JOINT_CT);
-	joint[num]->setDirection(dir);
-	joint[num]->setSpeed(spd);
-	Rotate(num, deg);
-}
-
-void ZobovManipulator::Rotate(uint8_t num, degree deg, speed spd) {
-	assert(num <= JOINT_CT);
-	joint[num]->setSpeed(spd);
-	Rotate(num, deg);
-}
-
-void ZobovManipulator::Rotate(uint8_t num, degree deg, direction dir) {
-	assert(num <= JOINT_CT);
-	joint[num]->setDirection(dir);
-	Rotate(num, deg);
+	if (dir != NONE)joint[num]->setDirection(dir);
+	if (spd >= 0) joint[num]->setSpeed(spd);
+//	Rotate(num, deg);
+	joint[num]->rotate(deg);
 }
 
 void ZobovManipulator::WaitTime(seconds sec) {
@@ -379,36 +309,7 @@ void ZobovManipulatorMathHelper::calcManipulatorRotateOld(const Point Manipulato
 	return;
 }
 
-/*
- * P - point to
- * trg_angles - degree to target
- */
-/*
-array<degree, 6> ZobovManipulatorMathHelper::calcManipulatorRotate(Point P, const array<degree, 3> trg_angles, const array<dimention, 4> d) {
-	Point tmpP;
-	array<degree, 6> res;
-	tmpP.x=P.x-d[3]*cos(trg_angles[1])*cos(trg_angles[0]);
-	tmpP.y=P.y-d[3]*cos(trg_angles[1])*sin(trg_angles[0]);
-	tmpP.z=P.z-d[3]*sin(trg_angles[1]);
-
-	res[0]=atan(tmpP.x/tmpP.y);
-
-	auto cosRes3 = -1*(tmpP.x*tmpP.x+tmpP.y*tmpP.y+(tmpP.z-d[0])*(tmpP.z-d[0])-d[1]*d[1]-d[2]*d[2])/(2*d[1]*d[2]);
-
-	res[2]=atan(-sqrt(1-cosRes3*cosRes3)/cosRes3);
-
-	auto tmpAngle0 = atan((tmpP.z-d[0])/sqrt(tmpP.x*tmpP.x+tmpP.y*tmpP.y));
-	auto tmpAngle1 = atan(d[2]*sin(res[2])/(d[1]-d[2]*cos(res[2])));
-	res[1]=tmpAngle0-tmpAngle1;
-
-	tmpAngle0=trg_angles[0]-res[0];
-	tmpAngle1=trg_angles[1]-res[1]-res[2];
-
-	res[3] = 0;
-
-	res[4] = res[1] - res[2] + trg_angles[1];
-	res[5] = trg_angles[2];
-
-	return res;
+void ZobovManipulator::SetJointAngles(degree q[JOINT_CT]) {
+	for(int i = 0; i < JOINT_CT; ++i)
+		joint[i]->setAngle(q[i]);
 }
-*/

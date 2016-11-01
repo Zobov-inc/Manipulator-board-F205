@@ -10,31 +10,20 @@
 #include "stm32f2xx.h"
 #include "misc.h"
 #include "system_stm32f2xx.h"
+#include "math/main_math.h"
 
 #include "ZobovLimitingSwitch.h"
 #include "ZobovManipulator.h"
 #include "ZobovManipulatorJointStepperMotorInc.h"
 #include "ZobovTIM.h"
 
+#define PI 3.14159265358979323846
 
 uint32_t    period;
 uint16_t	pulse;
 
 int blink_flag = 0;
 
-/*
-extern "C" void ADC_IRQHandler()
-{
-	volatile static int i;
-	i = 0;
-
-	if (ADC_GetFlagStatus (ADC1, ADC_FLAG_STRT)) {
-		ADC_ClearFlag(ADC1, ADC_FLAG_STRT);
-		i = 1;
-	}
-
-}
-*/
 extern "C" void TIM1_IRQHandler()
 {
     if (TIM_GetITStatus(TIM1, TIM_IT_Update) != RESET)
@@ -171,20 +160,16 @@ extern "C" void TIM8_BRK_TIM12_IRQHandler()
 
 extern "C" void EXTI0_IRQHandler()
 {
-//	++iq;
-	//GPIO_SetBits(GPIOB, GPIO_Pin_0);
 	EXTIHelper::CallIRQn(0);
 }
 
 extern "C" void EXTI1_IRQHandler()
 {
-//	++iw;
 	EXTIHelper::CallIRQn(1);
 }
 
 extern "C" void EXTI4_IRQHandler()
 {
-//	++ie;
 	EXTIHelper::CallIRQn(4);
 }
 
@@ -219,235 +204,126 @@ extern "C" void RTC_Alarm_IRQHandler() {
 	EXTI_ClearITPendingBit(EXTI_Line17);
 }
 
-
- int main() {
-
+int main() {
 	volatile uint32_t i = 0;
 
+	kinem2_new5_initialize();
 
-	ZobovManipulator::Init();
+	volatile char data;
+	volatile uint32_t x,y;
+	x = 1;
 
-	ZobovManipulator::Rotate(0, 300, COUNTERCLOCK, 1);
-	ZobovManipulator::WaitAll();
+	typedef array<degree, 2> lim_type;
+	array<lim_type, 4> q_lim = {};
+	q_lim[0] = {-131, 129};
+	q_lim[1] = {-180, 180};
+	q_lim[2] = {-180, -114};
+	q_lim[3] = {-180, 180};
+	array<degree, 4> start_q = {130, 105, -115, -105};
+	array<degree, 4> q;
+	array<degree, 4> move_q = {};
+	array<double, 4> math_q = {};
 
-	ZobovManipulator::Rotate(1, 2600, CLOCK, 1);
-	ZobovManipulator::WaitAll();
+	ZobovManipulator::Init(2);
 
-	ZobovManipulator::Rotate(2, 100, COUNTERCLOCK, 1);
-	ZobovManipulator::WaitAll();
+	while (true)
+	{
+		q = start_q;
+		move_q = {};
+		math_q = {};
 
-	ZobovManipulator::Grab(2);
-	ZobovManipulator::Rotate(1, 70, CLOCK, 1);
-	ZobovManipulator::WaitAll();
-	ZobovManipulator::Grab(2);
-	ZobovManipulator::Rotate(1, 300, COUNTERCLOCK, 1);
-	ZobovManipulator::WaitAll();
-	ZobovManipulator::Grab(2);
-	ZobovManipulator::Rotate(0, 200, COUNTERCLOCK, 1);
-	ZobovManipulator::WaitAll();
-	ZobovManipulator::Grab(2);
+		while(!ZobovManipulator::ready);
 
-	for(;;)
-			{
+		do {
+			ZobovManipulator::WriteChar(1);
+			data = ZobovManipulator::ReadChar();
+		} while(data != 1);
 
-				ZobovManipulator::UnGrab();
-				ZobovManipulator::WaitTime(2);
-				i++;
+		do {
+			ZobovManipulator::WriteChar(4);
+			data = ZobovManipulator::ReadChar();
+		} while(data != 4);
 
+
+		do {
+			ZobovManipulator::WriteChar(2);
+			ZobovManipulator::WaitTime(1);
+			x = ZobovManipulator::ReadUInt32();
+		} while(x < 0 || x > 640);
+
+		do {
+			ZobovManipulator::WriteChar(3);
+			ZobovManipulator::WaitTime(1);
+			y = ZobovManipulator::ReadUInt32();
+		} while(y < 0 || y > 480);
+
+
+		const auto Xc = 200;
+//		const auto Yc = 147+5;
+		const auto Xpx = 640;
+		const auto Ypx = 480;
+		const auto Xlmin = 69;
+		const auto Xlmax = 364;
+		const auto Ylmin = 28;
+		const auto Ylmax = 249;
+		const auto Xl = Xlmax - Xlmin;
+		const auto Yl = Ylmax - Ylmin;
+		const auto Xd = Xc - (Xl/2 + Xlmin);
+		const auto Ydlin = 5;
+		const auto Ydf = Ylmin + Ydlin;
+		const auto Ydm = 55;
+		volatile double mx = -1.0*Xl/Xpx*x + Xl/2 + Xd;
+		volatile double my = 1.0*y*Yl/Ypx + Ydm + Ydf;
+
+		main_kinem2_new5(mx, my, math_q.data());
+
+		bool skip = false;
+		for( i = 0; i < 4; ++i) {
+			math_q[i] = round(math_q[i]*180/PI);
+			if (( math_q[i] >= q_lim[i][1] ) || ( math_q[i] <= q_lim[i][0] ) || (math_q[i] != math_q[i])) {
+				skip = true;
+				continue;
 			}
-	/*
-	ZobovManipulator::Rotate(1, 300, COUNTERCLOCK, 1);
-	ZobovManipulator::WaitAll();
+			move_q[i] = math_q[i] - q[i];
+		}
+		if (skip) {
+			ZobovManipulator::Rollback(q.data(), start_q.data());
+			ZobovManipulator::RotateToStart();
+			continue;
+		}
 
-	ZobovManipulator::UnGrab();
-	ZobovManipulator::WaitTime(10);
-	*/
+		i = 6;
 
-
-
-
-	/*
-		ZobovManipulator::Rotate(0, 500, COUNTERCLOCK, 1);
-		ZobovManipulator::Rotate(1, 3000, CLOCK, 1);
-		ZobovManipulator::Rotate(2, 3000, COUNTERCLOCK, 1);
+		//0: CLOCK = +
+		//1: CLOCK = +
+		//2: CLOCK = +
+		//3: CLOCK = +
+		if (move_q[0] != 0) ZobovManipulator::Rotate(0, abs(move_q[0]), (move_q[0] > 0)?CLOCK:COUNTERCLOCK );
 		ZobovManipulator::WaitAll();
-	*/
-
-
-		for(;;)
-		{
-			i++;
-			/*
-			ZobovManipulator::Grab(2);
-			ZobovManipulator::UnGrab();
-			ZobovManipulator::WaitTime(2);
-			i++;
-			*/
-		}
-
-		/*
-	ZobovManipulator::Init();
-	//ToDo: set it
-	array<dimention, 4> dim = {0, 0, 0, 0};
-	//ToDo: set it
-	Point Manipulator = {0, 0, 0};
-
-	//ToDo: set it
-	array<degree, 3> target_degree = {30, 60, 0};
-	array<degree, 6> res_degree;
-	array<direction, 6> res_dir;
-
-	ZobovManipulatorMathHelper::calcManipulatorRotate(Manipulator, target_degree, dim, res_degree);
-	for(auto i = 0; i < res_degree.size(); ++i)
-		if (res_degree[i] >= 0) {noteps
-			res_dir[i] = CLOCK;
-		}
-		else {
-			res_degree[i] *= -1;
-			res_dir[i] = COUNTERCLOCK;
-		}
-
-	for(auto i = 0; i < 5; ++i)
-		ZobovManipulator::Rotate(0, res_degree[i], res_dir[i]);
-	ZobovManipulator::WaitAll();
-	//ZobovManipulator::Rotate(1, 30, COUNTERCLOCK);
-	//ZobovManipulator::WaitAll();
-*/
-
-
-/*
-	array<dimention, 4> dim = {111, 150, 135, 45};
-	Point p = { 140, 140, 140 };
-	//SET TO RAD!!111
-	array<degree, 3> trg = { 45, 45, 0 };
-	auto res = ZobovManipulatorMathHelper::calcManipulatorRotate(p, trg, dim);
-*/
-
-
-
-	//ZobovManipulator::WaitAll();
-
-	//ZobovManipulator::Rotate(1, 1000, CLOCK);
-	//ZobovManipulator::Rotate(2, 100, COUNTERCLOCK);//ok
-	//ZobovManipulator::WaitAll();
-//	ZobovManipulator::Rotate(1, 1000, CLOCK);//ok
-//	ZobovManipulator::WaitAll();
-//	ZobovManipulator::Rotate(2, 1000, CLOCK);//ok
-//	ZobovManipulator::WaitAll();
-//	ZobovManipulator::Rotate(3, 1000, CLOCK);//ok
-//	ZobovManipulator::WaitAll();
-//	ZobovManipulator::Rotate(0, 10000, COUNTERCLOCK);//ok
-//	ZobovManipulator::Rotate(1, 1000, COUNTERCLOCK);//ok
-//	ZobovManipulator::Rotate(2, 1000, COUNTERCLOCK);//ok
-//	ZobovManipulator::Rotate(3, 1000, COUNTERCLOCK);//ok
-//	ZobovManipulator::WaitAll();
-//	ZobovManipulator::Grab(3600);
-//	ZobovManipulator::Rotate(0, 36, COUNTERCLOCK);//ok
-//	ZobovManipulator::Rotate(1, 720, COUNTERCLOCK);//ok
-//	ZobovManipulator::Rotate(2, 36, COUNTERCLOCK);//ok
-//	ZobovManipulator::Rotate(3, 36, COUNTERCLOCK);//ok
-//	ZobovManipulator::WaitAll();
-//	ZobovManipulator::UnGrab();
-//	ZobovManipulator::Rotate(0, 100, CLOCK);
-//	int16_t uart_data[2];
-//	memset(uart_data, 0, 8);
-//	uint16_t led;
-	//ZobovManipulator::Rotate(3, 3500, COUNTERCLOCK, 6000);
-	/*
-	}
-
-		ZobovManipulator::Rotate(0, 10, COUNTERCLOCK);
+		q[0] = math_q[0];
+		if (move_q[3] != 0) ZobovManipulator::Rotate(3, abs(move_q[3]), (move_q[3] > 0)?COUNTERCLOCK:CLOCK );
 		ZobovManipulator::WaitAll();
-	//	ZobovManipulator::Rotate(1, 100, COUNTERCLOCK);
-	//  ZobovManipulator::WaitAll();
-	//	ZobovManipulator::Rotate(2, 100, COUNTERCLOCK);
-	//	ZobovManipulator::WaitAll();
-	//	ZobovManipulator::Rotate(3, 100, COUNTERCLOCK);
-	//	ZobovManipulator::WaitAll();
-	ZobovManipulator::RotateToStart();
-	}
-	*/
-//		i = 0;
-//		uart_data[0] = 0;
-//		while(true) {
-//			if (UART4->SR & USART_SR_RXNE) {
-//				if (i++ % 2) {
-//					uart_data[0] += UART4->DR << 8;
-//					if (uart_data[0] == 1000) {
-//						i = 0;
-//						break;
-//					}
-//					else
-//						uart_data[0] = 0;
-//				}
-//				else
-//					uart_data[0] += UART4->DR;
-//				USART_ClearFlag(UART4, USART_FLAG_LBD | USART_FLAG_TC  | USART_FLAG_RXNE );
-//			}
-//		}
-//		i = 0;
-//		memset(uart_data, 0, 8);
-//		while(i < 4)
-//		{
-//			if (UART4->SR & USART_SR_RXNE) {
-//				if (i % 2)
-//					uart_data[i++/2] += UART4->DR << 8;
-//				else
-//					uart_data[i++/2] += UART4->DR;
-//				USART_ClearFlag(UART4, USART_FLAG_LBD | USART_FLAG_TC  | USART_FLAG_RXNE );
-//			}
-//		}
-//
-////		USART_ClearFlag(UART4, USART_FLAG_LBD | USART_FLAG_TC  | USART_FLAG_RXNE );
-//		while(!(UART4->SR & USART_SR_TC)); //Проверка завершения передачи предыдущих данных
-//		UART4->DR = 7;
-//		USART_ClearFlag(UART4, USART_FLAG_LBD | USART_FLAG_TC  | USART_FLAG_RXNE );
+		q[3] = math_q[3];
+		if (move_q[2] != 0) ZobovManipulator::Rotate(2, abs(move_q[2]), (move_q[2] > 0)?CLOCK:COUNTERCLOCK );
+		ZobovManipulator::WaitAll();
+		q[2] = math_q[2];
+		if (move_q[1] != 0) ZobovManipulator::Rotate(1, abs(move_q[1]), (move_q[1] > 0)?COUNTERCLOCK:CLOCK );
+		ZobovManipulator::WaitAll();
+		q[1] = math_q[1];
 
-/* It works. Grab something hold it 5 secs and ungrab.
-		GPIO_SetBits(GPIOD, GPIO_Pin_2);
-		ZobovManipulator::Grab(5);
-		GPIO_ResetBits(GPIOD, GPIO_Pin_2);
+		ZobovManipulator::Grab(4);
+
+		ZobovManipulator::RotateToStart();
 		ZobovManipulator::UnGrab();
-		ZobovManipulator::WaitTime(1);
-*/
 
+		ZobovManipulator::ready = false;
+	}
 
-		//ZobovManipulator::Grab(10);
-		//ZobovManipulator::RotateToStart();
-		//GPIO_SetBits(GPIOA, GPIO_Pin_4);
-/*
-		ZobovManipulator::Rotate(0, 360, COUNTERCLOCK);//ok
-		ZobovManipulator::WaitAll();
+  kinem2_new5_terminate();
 
-		ZobovManipulator::Rotate(1, 360, COUNTERCLOCK);//ok
-		ZobovManipulator::WaitAll();
-
-		ZobovManipulator::Rotate(2, 360, COUNTERCLOCK);//ok
-		ZobovManipulator::WaitAll();
-
-		ZobovManipulator::Rotate(3, 360, COUNTERCLOCK);//ok
-		ZobovManipulator::WaitAll();
-*/
-//		ZobovManipulator::Rotate(0, 720, COUNTERCLOCK);//ok
-//		ZobovManipulator::WaitAll();
-//		ZobovManipulator::WaitTime(5);
-//		ZobovManipulator::RotateToStart();
-//		ZobovManipulator::WaitTime(5);
-
-//		ZobovManipulator::Rotate(0, 90, CLOCK);//ok
-//		ZobovManipulator::WaitTime(3);
-//		ZobovManipulator::RotateToStart();
-
-//		ZobovManipulator::Rotate(1, 10000, CLOCK);//ok
-//		ZobovManipulator::Rotate(2, 10000, CLOCK);//ok
-//		ZobovManipulator::Rotate(3, 10000, CLOCK);//ok
-//		ZobovManipulator::Rotate(4, 10000, CLOCK);//ok
-//		ZobovManipulator::Rotate(5, 10000, CLOCK);//ok
-		//ZobovManipulator::Grab(36);
-		//ZobovManipulator::WaitAll();
-
-
+  return 0;
 }
+
 
 #pragma GCC diagnostic pop
 

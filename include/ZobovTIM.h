@@ -6,6 +6,8 @@
 
 #include "ZobovManipulatorJoint.h"
 
+extern const uint32_t CoreSystemClock;
+
 class ZobovManipulatorJoint;
 
 class ZobovTIM {

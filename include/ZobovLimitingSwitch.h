@@ -65,3 +65,31 @@ public:
 
 	virtual ~ZobovManipulatorJointLimitingSwitch() {};
 };
+
+class ZobovManipulatorButtonLimitingSwitch : public ZobovLimitingSwitch, public EXTIIRQn_Interface {
+private:
+	bool *control;
+	uint8_t mode;
+
+public:
+	ZobovManipulatorButtonLimitingSwitch(ZobovSwitchGPIOPort *p, bool *c, uint8_t m = 1) : ZobovLimitingSwitch(p), control(c), mode(m) {
+		EXTIHelper::SetEXTIIRQn(port->pinNum, port->GPIONum, this);
+	}
+
+	virtual void IRQn() {
+		switch (mode) {
+			case 0:
+				*control = !*control;
+				break;
+			case 1:
+				*control = true;
+				break;
+			case 2:
+				*control = false;
+				break;
+			default:
+				assert("Unsupported button mode!");
+				break;
+		}
+	};
+};

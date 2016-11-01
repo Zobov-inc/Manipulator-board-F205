@@ -18,7 +18,7 @@ OCnFunc* ZobovManipulatorJoint::OCnFunction[] = {TIM_OC1Init, TIM_OC2Init, TIM_O
 IRQn ZobovManipulatorJoint::TIMIRQn[] = {TIM2_IRQn, TIM2_IRQn, TIM3_IRQn, TIM4_IRQn, TIM5_IRQn, TIM6_DAC_IRQn, TIM7_IRQn, TIM8_UP_TIM13_IRQn, TIM1_BRK_TIM9_IRQn, TIM1_UP_TIM10_IRQn, TIM1_TRG_COM_TIM11_IRQn, TIM8_BRK_TIM12_IRQn, TIM2_IRQn};
 uint8_t ZobovManipulatorJoint::GPIO_AF[] = {GPIO_AF_TIM1, GPIO_AF_TIM2, GPIO_AF_TIM3, GPIO_AF_TIM4, GPIO_AF_TIM5, 0, 0, GPIO_AF_TIM8, GPIO_AF_TIM9, GPIO_AF_TIM10, GPIO_AF_TIM11, GPIO_AF_TIM12, GPIO_AF_TIM13, GPIO_AF_TIM14};
 
-ZobovManipulatorJoint::ZobovManipulatorJoint(ZobovJointTIM *t, uint8_t o, ZobovManipulatorStepGPIOPort *s, ZobovManipulatorDirGPIOPort *d, degree dToZ, ZobovEncoderTIM* e = NULL) : TIM(t), OCn(o-1), st(s), dir(d), encTIM(e), status(IDLE), dir_lock{0,0}, degreeToZero(dToZ) {
+ZobovManipulatorJoint::ZobovManipulatorJoint(ZobovJointTIM *t, uint8_t o, ZobovManipulatorStepGPIOPort *s, ZobovManipulatorDirGPIOPort *d, degree rd, float k = 1, ZobovEncoderTIM* e = NULL) : TIM(t), OCn(o-1), st(s), dir(d), encTIM(e), status(IDLE), dir_lock{0,0}, rollback_degree(rd), coef(k), q(0) {
 	assert(OCn >= 0);
 	assert(OCn <= 3);
 
@@ -73,6 +73,10 @@ direction ZobovManipulatorJoint::getDirection() {
 	//return (direction)GPIO_ReadOutputDataBit(dir->getGPIO(), dir->getPin());
 }
 
+void ZobovManipulatorJoint::setAngle(degree qq) {
+	q = qq;
+}
+
 void ZobovManipulatorJoint::setDirLock(direction d) {
 	dir_lock[d] = true;
 }
@@ -94,17 +98,18 @@ error_joint ZobovManipulatorJoint::setSpeed(speed s) {
 
 	TIM_TimeBaseInitTypeDef TIM_TimeBaseStructure;
 
-	if (!s) {
+	if (s < 0) {
 		pulse = 0;
-		per = (uint32_t)((SystemCoreClock / 15000 ) - 1);
+		per = ZobovJointTIM::period;//(uint32_t)((CoreSystemClock / 150000 ) - 1);
 	}
-	else {
+	else if (s == 0) {
 		//if (TIM->isLock()) return 1
-		pulse = (5 * (TIM->period - 1) / 10); //TODO get pulse from speed
-		per = (uint32_t)((SystemCoreClock / 15000 ) - 1);
+		per = ZobovJointTIM::period;//(uint32_t)((CoreSystemClock / 150000 ) - 1);
+		pulse = ((per - 1) / 2); //TODO get pulse from speed
 	}
-	if (s>1) {
-		per = (uint32_t)((SystemCoreClock / s ) - 1);
+	else  {
+		per = (uint32_t)((CoreSystemClock / s ) - 1);
+		pulse = ((per - 1) / 2); //TODO get pulse from speed
 	}
 /* Channel 1 output configuration */
 
@@ -123,12 +128,6 @@ error_joint ZobovManipulatorJoint::setSpeed(speed s) {
 	TIM_TimeBaseInit(TIM->getTIM(), &TIM_TimeBaseStructure);
 
 	return 0;
-}
-
-void ZobovManipulatorJoint::rotateToZero() {
-	setDirection(dirToZero);
-	//setSpeed();
-	rotate(degreeToZero);
 }
 
 ZobovManipulatorJoint::~ZobovManipulatorJoint() {

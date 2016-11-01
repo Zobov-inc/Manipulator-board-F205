@@ -16,10 +16,16 @@ error_joint ZobovManipulatorJointStepperMotorInc::rotate(degree theta) {
 	assert(!dir_lock[getDirection()]);
 
 	assert(!TIM->isLock());
+
+	uint32_t limit = (uint32_t)ceil(theta/360*200*32*2*coef);
+
+	if (limit <= 1)
+		return 1;
+
 	TIM->lock();
 
 	//limit = ceil(theta/step*microstep);
-	uint32_t limit = (uint32_t)ceil(theta/360*200*32*2);
+//	uint32_t limit = (uint32_t)ceil(theta/360*200*32*2);
 
 	status = ROTATE;
 
@@ -27,7 +33,7 @@ error_joint ZobovManipulatorJointStepperMotorInc::rotate(degree theta) {
 	if (encTIM) encTIM->setLimit(limit);
 	else TIM->setLimit(limit);
 
-	setSpeed(1); //TODO set speed
+//	setSpeed(1); //TODO set speed
 	TIM->EnableTim();
 	dir_lock[!getDirection()] = false;
 	return 0;
@@ -36,7 +42,7 @@ error_joint ZobovManipulatorJointStepperMotorInc::rotate(degree theta) {
 error_joint ZobovManipulatorJointStepperMotorInc::stop() {
 	//assert(TIM->isLock());
 
-	setSpeed(0); //TODO set speed
+//	setSpeed(0); //TODO set speed
 	TIM->DisableTim();
 	TIM->unlock();
 	status = IDLE;
